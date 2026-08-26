@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Sifrious\Funes\Value;
+
+use DateTimeImmutable;
+
+final readonly class ExtractionResult
+{
+    public function __construct(
+        public string $id,
+        public string $observationId,
+        public string $extractor,
+        public string $version,
+        public mixed $result,
+        public ?string $failure,
+        public DateTimeImmutable $recordedAt,
+    ) {}
+
+    public function succeeded(): bool
+    {
+        return $this->failure === null;
+    }
+}

@@ -1,0 +1,70 @@
+{
+    "facts": [
+        "Funes exposes a database-backed ObservationStore through Laravel's container.",
+        "Observation acceptance, payload preservation, canonical resource creation, and discovery creation occur in one transaction.",
+        "Raw payloads are content-addressed by SHA-256 and remain recoverable through observations.",
+        "Extraction successes and failures are immutable records keyed by observation, extractor, and extractor version.",
+        "A canonical resource and payload hash identify one historical effect; a new payload hash creates a new observation."
+        ,"Observation acceptance returns an explicit first, unchanged, or changed disposition.",
+        "Discovery provenance is queryable from a child resource back to its parent resource and observation."
+    ],
+    "assumptions": [
+        "Crawler-provided source and canonical resource references are stable opaque strings.",
+        "A new extraction outcome for the same extractor requires a new extractor version."
+    ],
+    "decisions": [
+        {
+            "decision": "Use Laravel's query builder and package migrations as the first persistence implementation.",
+            "rationale": "The package already targets Laravel, and a second persistence implementation is not yet demonstrated."
+        },
+        {
+            "decision": "Treat conflicting reuse of an idempotency reference as an error.",
+            "rationale": "Returning an earlier observation for different content would silently lose evidence."
+        },
+        {
+            "decision": "Keep canonicalization outside Funes.",
+            "rationale": "Canonical reference policy belongs to the crawler or connector and is independent of storage."
+        },
+        {
+            "decision": "Identify observations by canonical resource and content hash.",
+            "rationale": "Repeated retrieval of identical content must have one historical effect, while changed content must remain an additional immutable observation."
+        },
+        {
+            "decision": "Return acceptance disposition with every accepted observation.",
+            "rationale": "Callers need to distinguish first, unchanged, and changed content without reconstructing the decision from storage."
+        }
+    ],
+    "open_questions": [],
+    "constraints": [
+        "Observations and extraction results have no update operation.",
+        "Acceptance must remain atomic and safe to retry.",
+        "Storage vocabulary must remain independent of a particular website domain."
+    ],
+    "glossary": {
+        "source": "An external origin identified by an opaque stable reference.",
+        "resource": "A canonical address within a source.",
+        "observation": "An immutable retrieval of a resource at an observed time.",
+        "discovery": "A typed relationship from the observed parent resource to another canonical resource.",
+        "extraction": "A versioned success or failure derived from one observation."
+    },
+    "features": {
+        "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
+        "later": ["search projections", "object payload storage", "payload compression"]
+    },
+    "workflows": {
+        "accept_observation": ["resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "resolve discovered resources", "append discovery relationships", "commit"],
+        "record_extraction": ["verify observation", "append versioned outcome", "commit"]
+    },
+    "content_opportunities": [
+        {
+            "format": "post",
+            "user_problem": "Crawler retries create duplicates or overwrite evidence.",
+            "concept": "Atomic idempotency with conflict detection",
+            "technology": "Laravel database transactions and unique constraints",
+            "project_context": "Funes crawler persistence",
+            "audience": "application developers",
+            "skill_level": "intermediate",
+            "hook": "Idempotency should detect disagreement, not merely hide duplicates."
+        }
+    ]
+}

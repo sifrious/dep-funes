@@ -101,8 +101,12 @@ Funes is guided by a small set of constraints:
 7. Keep persistence and search replaceable at genuine implementation boundaries.
 8. Avoid assumptions about the application using the package.
 
-## Project status
+## Crawler persistence
 
-Funes is in its initial design stage. Its public PHP API, persistence contracts, schema, installation instructions, and compatibility guarantees have not yet been released.
+The first executable slice is a database-backed observation store. Run the package migrations, then resolve `Sifrious\Funes\Persistence\ObservationStore` from the Laravel container.
 
-The first useful release will focus on the smallest coherent historical kernel: records, sources, entities, relationships, provenance, time semantics, and idempotent ingestion. Search and specialized historical vocabularies will build on that foundation without becoming requirements of the core.
+`accept()` takes an `ObservationDraft` containing a source reference, canonical resource reference, observation time, raw payload, metadata, and optional discoveries. It returns an `AcceptedObservation` with the stable observation and an explicit `first`, `unchanged`, or `changed` disposition. Acceptance is transactional and idempotent by canonical resource and payload hash. Retrieving the same resource with identical content returns its existing observation; changed content appends a new immutable observation.
+
+`find()` recovers the latest immutable observation and its original payload by source and canonical resource reference. `get()` recovers any historical observation by its immutable ID. `discoveriesTo()` resolves a discovered resource back to its parent resources and observations. `recordExtraction()` appends an idempotent success or failure identified by observation, extractor, and extractor version. The configured database connection is read from `funes.connection`; `null` uses Laravel's default connection.
+
+This slice deliberately excludes crawling, URL canonicalization policy, payload compression, object storage, search projections, and mutable resource state. Callers decide what a canonical reference means; Funes preserves it without assuming a particular website platform or content domain.
