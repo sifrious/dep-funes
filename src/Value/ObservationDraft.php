@@ -7,6 +7,7 @@ namespace Sifrious\Funes\Value;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Sifrious\Funes\Association\EntityAssociationDraft;
+use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 
 final readonly class ObservationDraft
 {
@@ -26,6 +27,11 @@ final readonly class ObservationDraft
     public array $associations;
 
     /**
+     * @var list<HistoricalRelationshipDraft>
+     */
+    public array $relationships;
+
+    /**
      * @param  list<string>  $transformationLineage
      */
     public function __construct(
@@ -43,6 +49,7 @@ final readonly class ObservationDraft
         mixed $metadata = [],
         mixed $texts = [],
         mixed $associations = [],
+        mixed $relationships = [],
         public mixed $discoveries = [],
     ) {
         new SourceLocator($sourceReference, $sourceName, $resourceReference);
@@ -53,8 +60,8 @@ final readonly class ObservationDraft
             throw new InvalidArgumentException('Occurrence time cannot be later than observation time.');
         }
 
-        if (! is_array($metadata) || ! is_array($texts) || ! is_array($associations) || ! is_array($discoveries)) {
-            throw new InvalidArgumentException('Metadata, texts, associations, and discoveries must be arrays.');
+        if (! is_array($metadata) || ! is_array($texts) || ! is_array($associations) || ! is_array($relationships) || ! is_array($discoveries)) {
+            throw new InvalidArgumentException('Metadata, texts, associations, relationships, and discoveries must be arrays.');
         }
 
         $metadataItems = [];
@@ -93,6 +100,18 @@ final readonly class ObservationDraft
 
         $this->associations = $associationItems;
 
+        $relationshipItems = [];
+
+        foreach ($relationships as $relationship) {
+            if (! $relationship instanceof HistoricalRelationshipDraft) {
+                throw new InvalidArgumentException('Relationships must contain only HistoricalRelationshipDraft values.');
+            }
+
+            $relationshipItems[] = $relationship;
+        }
+
+        $this->relationships = $relationshipItems;
+
         foreach ($discoveries as $discovery) {
             if (! $discovery instanceof Discovery) {
                 throw new InvalidArgumentException('Discoveries must contain only Discovery values.');
@@ -123,6 +142,7 @@ final readonly class ObservationDraft
             $this->metadata,
             $this->texts,
             $this->associations,
+            $this->relationships,
             $this->discoveries,
         );
     }

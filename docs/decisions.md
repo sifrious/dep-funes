@@ -65,3 +65,10 @@ reference. Its source encounters are separate provenance links. Replaying identi
 not duplicate either record; encountering the same fact through later source provenance appends
 evidence without changing the association. Traversal compares the exact durable reference rather
 than a display value or foreign table key.
+
+## D-010 — Historical event links are references with evidence, not embedded records
+
+A historical relationship stores its source observation, validated non-causal type, target event
+reference, and separate provenance links. Internal Funes observation targets must exist; portable
+external event references remain resolvable by their owner. The relation does not copy its target
+or infer causal and parent-child semantics that the supplied evidence did not state.

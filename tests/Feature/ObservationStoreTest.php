@@ -8,8 +8,11 @@ use Illuminate\Support\Str;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
 use Sifrious\Funes\Persistence\ObservationConflict;
+use Sifrious\Funes\Persistence\ObservationNotFound;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
+use Sifrious\Funes\Relationship\HistoricalRelationshipType;
 use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
@@ -28,6 +31,7 @@ function observationDraft(
     string $observedAt = '2026-08-26T12:00:00+00:00',
     ?array $metadata = null,
     ?array $associations = null,
+    ?array $relationships = null,
 ): ObservationDraft {
     return new ObservationDraft(
         sourceReference: 'website:example',
@@ -43,6 +47,7 @@ function observationDraft(
         contentType: 'text/html',
         metadata: $metadata ?? [new MetadataDraft('http:response', '1', ['status' => 200])],
         associations: $associations ?? [],
+        relationships: $relationships ?? [],
         discoveries: [new Discovery('https://example.test/articles/two', 'link')],
     );
 }
@@ -155,6 +160,72 @@ it('keeps association facts idempotent while appending source provenance', funct
 it('rejects association inputs outside the typed contract', function (): void {
     observationDraft(associations: ['project_01']);
 })->throws(InvalidArgumentException::class);
+
+it('preserves typed relationships between historical events without embedding records', function (): void {
+    $store = app(ObservationStore::class);
+    $original = $store->accept(observationDraft())->observation;
+    $relationship = new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::Corrects,
+        $original->reference(),
+    );
+    $correction = $store->accept(observationDraft(
+        payload: '<html>corrected</html>',
+        observedAt: '2026-08-27T12:00:00+00:00',
+        relationships: [$relationship],
+    ))->observation;
+    $incoming = $store->relationshipsTo($original->reference());
+
+    expect($correction->related(HistoricalRelationshipType::Corrects))->toHaveCount(1)
+        ->and($correction->relationships[0]->target->equals($original->reference()))->toBeTrue()
+        ->and($correction->relationships[0]->provenanceIds)->toBe([$correction->provenance[0]->id])
+        ->and($incoming)->toHaveCount(1)
+        ->and($incoming[0]->observationId)->toBe($correction->id)
+        ->and(DB::table('funes_observations')->count())->toBe(2)
+        ->and(json_decode((string) DB::table('funes_historical_relationships')->value('target_reference'), true, flags: JSON_THROW_ON_ERROR))
+        ->toBe($original->reference()->toArray());
+});
+
+it('keeps relationship facts idempotent while appending source provenance', function (): void {
+    $store = app(ObservationStore::class);
+    $original = $store->accept(observationDraft())->observation;
+    $relationship = new HistoricalRelationshipDraft(HistoricalRelationshipType::References, $original->reference());
+    $draft = observationDraft(
+        payload: '<html>related</html>',
+        observedAt: '2026-08-27T12:00:00+00:00',
+        relationships: [$relationship],
+    );
+
+    $first = $store->accept($draft)->observation;
+    $retry = $store->accept($draft)->observation;
+    $later = $store->accept(observationDraft(
+        payload: '<html>related</html>',
+        observedAt: '2026-08-28T12:00:00+00:00',
+        relationships: [$relationship],
+    ))->observation;
+
+    expect($retry->relationships[0]->id)->toBe($first->relationships[0]->id)
+        ->and($later->relationships[0]->id)->toBe($first->relationships[0]->id)
+        ->and($later->relationships[0]->provenanceIds)->toHaveCount(2)
+        ->and(DB::table('funes_historical_relationships')->count())->toBe(1)
+        ->and(DB::table('funes_historical_relationship_provenance')->count())->toBe(2);
+});
+
+it('rejects non-event and missing internal historical references', function (): void {
+    expect(fn () => new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::Related,
+        new CrossPackageReference('sifrious/landing', 'project', 'project_01'),
+    ))->toThrow(InvalidArgumentException::class);
+
+    $store = app(ObservationStore::class);
+    $missing = new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::Related,
+        new CrossPackageReference('sifrious/funes', 'observation', '01K00000000000000000000000'),
+    );
+
+    expect(fn () => $store->accept(observationDraft(relationships: [$missing])))
+        ->toThrow(ObservationNotFound::class)
+        ->and(DB::table('funes_observations')->count())->toBe(0);
+});
 
 it('appends namespaced metadata without changing observation identity', function (): void {
     $store = app(ObservationStore::class);

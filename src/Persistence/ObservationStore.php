@@ -6,6 +6,7 @@ namespace Sifrious\Funes\Persistence;
 
 use Sifrious\Funes\Association\EntityAssociation;
 use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\DiscoveryProvenance;
 use Sifrious\Funes\Value\ExtractionDraft;
@@ -25,6 +26,11 @@ interface ObservationStore
      * @return list<EntityAssociation>
      */
     public function associationsTo(CrossPackageReference $entity): array;
+
+    /**
+     * @return list<HistoricalRelationship>
+     */
+    public function relationshipsTo(CrossPackageReference $event): array;
 
     /**
      * @return list<DiscoveryProvenance>

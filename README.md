@@ -100,6 +100,10 @@ Entity associations are the first executable relationship seam. An `EntityAssoci
 
 Association facts are immutable and idempotent by observation, role, and complete reference. Repeated source evidence appends association-provenance links instead of duplicating the fact. Observations return their associations, filter them by role and optional entity type, and `ObservationStore::associationsTo()` traverses from an exact durable entity reference back to every associated historical observation. A source retry or owner-side entity change cannot rewrite the association that was observed.
 
+Historical event relationships use a separate seam. An observation exposes its own versioned `sifrious/funes` reference and may retain `related`, `references`, `responds-to`, `corrects`, or `supersedes` links to another historical event reference. The relationship stores only the target reference, never a duplicated event. Internal Funes observation targets must already exist; external historical event references remain portable and owner-resolvable.
+
+Relationship facts deduplicate by source observation, type, and target reference. Their provenance links append independently as later source encounters confirm the same relation. `ObservationStore::relationshipsTo()` provides deterministic incoming traversal while `Observation::related()` filters outgoing relations. These types describe supplied relationships but do not claim causality or parentage; those stronger semantics require the later causal relationship contract and evidence.
+
 ## Retrieval and long-term memory
 
 Funes is intended to support structured, textual, and optional semantic retrieval over preserved history. Consumers should be able to search by entity, project, agent, source, time range, record type, tags, and metadata; reconstruct the history surrounding a moment; produce timelines; and traverse relationships.

@@ -12,6 +12,9 @@ use Sifrious\Funes\Association\EntityAssociation;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
 use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\Funes\Relationship\HistoricalRelationship;
+use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
+use Sifrious\Funes\Relationship\HistoricalRelationshipType;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
@@ -74,6 +77,7 @@ final class SqlObservationStore implements ObservationStore
             $this->storeMetadata((string) $row->id, (string) $provenance->id, $draft->metadata, $now);
             $this->storeText((string) $row->id, (string) $provenance->id, $draft->texts, $now);
             $this->storeAssociations((string) $row->id, (string) $provenance->id, $draft->associations, $now);
+            $this->storeRelationships((string) $row->id, (string) $provenance->id, $draft->relationships, $now);
             $this->storeDiscoveries((string) $row->id, $sourceId, $resourceId, $draft->discoveries, $now);
 
             return new AcceptedObservation(
@@ -117,6 +121,17 @@ final class SqlObservationStore implements ObservationStore
             ->orderBy('id')
             ->get()
             ->map(fn (stdClass $row): EntityAssociation => $this->hydrateAssociation($row))
+            ->all());
+    }
+
+    public function relationshipsTo(CrossPackageReference $event): array
+    {
+        return array_values($this->connection->table('funes_historical_relationships')
+            ->where('target_reference_key', $event->key())
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $row): HistoricalRelationship => $this->hydrateRelationship($row))
             ->all());
     }
 
@@ -391,6 +406,55 @@ final class SqlObservationStore implements ObservationStore
         }
     }
 
+    /**
+     * @param  list<HistoricalRelationshipDraft>  $relationships
+     */
+    private function storeRelationships(
+        string $observationId,
+        string $provenanceId,
+        array $relationships,
+        DateTimeImmutable $recordedAt,
+    ): void {
+        foreach ($relationships as $relationship) {
+            if ($relationship->target->owner === 'sifrious/funes'
+                && $relationship->target->type === 'observation'
+                && ! $this->connection->table('funes_observations')->where('id', $relationship->target->id)->exists()) {
+                throw new ObservationNotFound("Related observation [{$relationship->target->id}] does not exist.");
+            }
+
+            $fingerprint = hash('sha256', $this->json([
+                $observationId,
+                $relationship->type->value,
+                $relationship->target->toArray(),
+            ]));
+
+            $this->connection->table('funes_historical_relationships')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'observation_id' => $observationId,
+                'type' => $relationship->type->value,
+                'target_reference' => $this->json($relationship->target->toArray()),
+                'target_reference_key' => $relationship->target->key(),
+                'fingerprint' => $fingerprint,
+                'recorded_at' => $recordedAt,
+            ]);
+
+            $relationshipId = $this->connection->table('funes_historical_relationships')
+                ->where('fingerprint', $fingerprint)
+                ->value('id');
+
+            if (! is_string($relationshipId)) {
+                throw new ObservationConflict('The historical relationship could not be accepted.');
+            }
+
+            $this->connection->table('funes_historical_relationship_provenance')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'relationship_id' => $relationshipId,
+                'provenance_id' => $provenanceId,
+                'recorded_at' => $recordedAt,
+            ]);
+        }
+    }
+
     private function storeExtractionProvenance(
         string $extractionId,
         ProducerContext $producerContext,
@@ -529,6 +593,13 @@ final class SqlObservationStore implements ObservationStore
             ->get()
             ->map(fn (stdClass $item): EntityAssociation => $this->hydrateAssociation($item))
             ->all());
+        $relationships = array_values($this->connection->table('funes_historical_relationships')
+            ->where('observation_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): HistoricalRelationship => $this->hydrateRelationship($item))
+            ->all());
 
         return new Observation(
             (string) $row->id,
@@ -543,6 +614,7 @@ final class SqlObservationStore implements ObservationStore
             $metadata,
             $texts,
             $associations,
+            $relationships,
             $discoveries,
             $provenance,
         );
@@ -564,6 +636,27 @@ final class SqlObservationStore implements ObservationStore
             (string) $row->observation_id,
             EntityAssociationRole::from((string) $row->role),
             CrossPackageReference::fromArray($reference),
+            $provenanceIds,
+            new DateTimeImmutable((string) $row->recorded_at),
+        );
+    }
+
+    private function hydrateRelationship(stdClass $row): HistoricalRelationship
+    {
+        $target = $this->decode((string) $row->target_reference);
+        $provenanceIds = array_values($this->connection->table('funes_historical_relationship_provenance')
+            ->where('relationship_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->pluck('provenance_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all());
+
+        return new HistoricalRelationship(
+            (string) $row->id,
+            (string) $row->observation_id,
+            HistoricalRelationshipType::from((string) $row->type),
+            CrossPackageReference::fromArray($target),
             $provenanceIds,
             new DateTimeImmutable((string) $row->recorded_at),
         );

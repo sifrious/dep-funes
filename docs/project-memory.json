@@ -32,7 +32,10 @@
         "Aleph observation and artifact references and Kilgore interpretation references pass the shared contract without model imports or private-table access.",
         "Historical observations return typed subject, actor, context, artifact, and target associations to durable cross-package entity references.",
         "Entity association facts deduplicate independently from their append-only source provenance.",
-        "Exact durable entity references traverse back to associated historical observations."
+        "Exact durable entity references traverse back to associated historical observations.",
+        "Historical observations preserve related, references, responds-to, corrects, and supersedes links as target references rather than embedded records.",
+        "Historical relationship facts deduplicate independently from append-only relationship provenance.",
+        "Incoming and outgoing historical relationships are retrievable in deterministic order."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -118,6 +121,10 @@
         {
             "decision": "Identify entity association facts separately from their provenance links.",
             "rationale": "The same observed relation can be supported by multiple source encounters without duplicating or rewriting the historical fact."
+        },
+        {
+            "decision": "Represent historical event relationships as typed references with separate provenance.",
+            "rationale": "Related records remain canonical and independently retrievable while retries and later evidence do not duplicate or rewrite the relationship fact."
         }
     ],
     "open_questions": [],
@@ -143,7 +150,10 @@
         "The owning package must authorize every resolution request and return a complete explicit result set.",
         "Snapshots are display and search copies and never replace durable references or canonical owner state.",
         "Entity associations accept only validated roles and durable cross-package references.",
-        "Association traversal uses the complete durable reference rather than display values or foreign storage keys."
+        "Association traversal uses the complete durable reference rather than display values or foreign storage keys.",
+        "Historical relationships target only observation, derived-record, or historical-event references.",
+        "Internal Funes observation targets must exist before a relationship is accepted.",
+        "General historical relationship types do not imply causality or parent-child structure."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -169,7 +179,9 @@
         "reference_snapshot": "A non-authoritative display or search copy attached to a durable cross-package reference.",
         "reference_resolution": "An owner-issued available, unavailable, tombstoned, superseded, or unauthorized outcome for one durable reference.",
         "entity_association": "An immutable typed role connecting one historical observation to one durable cross-package entity reference.",
-        "association_provenance": "An append-only link recording which observation provenance assertion supplied an entity association fact."
+        "association_provenance": "An append-only link recording which observation provenance assertion supplied an entity association fact.",
+        "historical_relationship": "An immutable typed link from one observation to another historical event reference without embedding the target record.",
+        "relationship_provenance": "An append-only link recording which observation provenance assertion supplied a historical relationship fact."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -183,6 +195,8 @@
         "resolve_cross_package_references": ["deduplicate durable references", "group the batch by owning package", "pass caller access context to each owner once", "require one explicit resolution per reference", "retain durable identities and any historical snapshots"],
         "record_entity_associations": ["validate association roles and durable references", "accept or reuse the immutable association fact", "append or reuse its source provenance link", "return associations with the historical observation"],
         "traverse_entity_associations": ["hash the complete durable entity reference", "find matching immutable association facts", "recover every association provenance link", "return originating observation identities in deterministic order"],
+        "record_historical_relationships": ["validate the non-causal relationship type and event target", "verify internal Funes targets", "accept or reuse the immutable relationship fact", "append or reuse its source provenance link"],
+        "traverse_historical_relationships": ["query outgoing links from an observation or incoming links to an exact event reference", "recover relationship provenance", "return source and target identities without duplicating either event"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],
