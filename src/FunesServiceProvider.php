@@ -12,6 +12,8 @@ use Sifrious\Funes\Acceptance\AcceptanceBacklog;
 use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\SqlAcceptanceBacklog;
 use Sifrious\Funes\Acceptance\SqlAcceptanceGateway;
+use Sifrious\Funes\Identity\IdentityRegistry;
+use Sifrious\Funes\Identity\SqlIdentityRegistry;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Persistence\SqlObservationStore;
 
@@ -33,6 +35,10 @@ class FunesServiceProvider extends ServiceProvider
         $this->app->singleton(AcceptanceBacklog::class, fn ($app): AcceptanceBacklog => new SqlAcceptanceBacklog(
             $this->connection($app),
             $app->make(ObservationStore::class),
+        ));
+
+        $this->app->singleton(IdentityRegistry::class, fn ($app): IdentityRegistry => new SqlIdentityRegistry(
+            $this->connection($app),
         ));
     }
 

@@ -11,7 +11,10 @@
         "Funes exposes portable entity reference kinds for projects, identities, repositories, organizations, and domains.",
         "Every accepted observation returns append-only provenance assertions containing a resolvable source locator, producer identity, occurrence time when known, observation time, recording time, and transformation lineage.",
         "An exact retry reuses its provenance assertion; a later encounter with identical content appends provenance without duplicating the historical observation.",
-        "Acceptance-gateway replay resolves the accepted observation and its provenance."
+        "Acceptance-gateway replay resolves the accepted observation and its provenance.",
+        "Entity kind, source reference, and external identifier resolve to one stable Funes entity reference.",
+        "Repeated identity claims reuse the entity and provenance evidence; later observations append evidence without duplicating the entity.",
+        "Identity queries return preserved external identifiers and provenance by either source identity or stable Funes reference."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -49,6 +52,14 @@
         {
             "decision": "Store provenance assertions separately from observations.",
             "rationale": "One historical effect may be encountered by multiple producers or at multiple times; preserving those paths must not duplicate or rewrite the observation."
+        },
+        {
+            "decision": "Resolve stable entities by entity kind, source reference, and exact external identifier.",
+            "rationale": "This demonstrated key is stable across historical records and retries without inventing equivalence between unrelated source namespaces."
+        },
+        {
+            "decision": "Do not infer cross-source identity equivalence.",
+            "rationale": "Merging identifiers requires explicit evidence and belongs to the later entity-association contract."
         }
     ],
     "open_questions": [],
@@ -59,7 +70,9 @@
         "Entity references must not use host database integers or unqualified display names.",
         "Every new observation must be created in the same transaction as at least one provenance assertion.",
         "Occurrence time cannot be later than observation time.",
-        "Producer references and source locators must be non-empty package-owned values."
+        "Producer references and source locators must be non-empty package-owned values.",
+        "An external identity claim must reference provenance from the same source.",
+        "Cross-source entity equivalence is never inferred from matching display values."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -70,7 +83,9 @@
         "entity_reference": "A typed namespaced opaque identifier for a stable cross-application entity.",
         "source_locator": "A source reference, source name, and canonical resource reference sufficient for the owning integration to resolve the original material.",
         "producer": "The stable identity and display name of the package or process that supplied an observation.",
-        "provenance_assertion": "An immutable source, producer, temporal, and transformation-lineage path by which Funes knows an observation."
+        "provenance_assertion": "An immutable source, producer, temporal, and transformation-lineage path by which Funes knows an observation.",
+        "external_identity": "An opaque source-owned identifier retained with the provenance that asserted it.",
+        "stable_entity": "A package-owned identity with a durable funes reference reused across historical records."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -78,6 +93,8 @@
     },
     "workflows": {
         "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
+        "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
+        "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "retrieve_observation": ["resolve observation", "recover original payload", "recover every provenance assertion in deterministic order", "return source locators, producers, temporal coordinates, and transformation lineage"],
         "record_extraction": ["verify observation", "append versioned outcome", "commit"]
     },

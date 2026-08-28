@@ -13,3 +13,10 @@ One observation represents one historical effect for a canonical resource and pa
 source encounter appends a provenance assertion containing its source locator, producer, temporal
 coordinates, and transformation lineage. Exact retries reuse an assertion, while later encounters
 of unchanged content add evidence without duplicating the observation.
+
+## D-003 — Source identities resolve deterministically without inferred merging
+
+Entity kind, source reference, and exact external identifier resolve to one stable Funes entity.
+Repeated evidence reuses that entity, while later provenance is appended. Identifiers from different
+sources remain separate until an explicit, evidence-bearing association is recorded by a later
+relationship capability.

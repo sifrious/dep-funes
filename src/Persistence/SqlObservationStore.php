@@ -283,6 +283,7 @@ final class SqlObservationStore implements ObservationStore
             ])
             ->map(fn (stdClass $item): Provenance => new Provenance(
                 (string) $item->id,
+                (string) $item->observation_id,
                 new SourceLocator(
                     (string) $item->source_reference,
                     (string) $item->source_name,

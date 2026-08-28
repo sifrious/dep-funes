@@ -13,6 +13,7 @@ final readonly class Provenance
      */
     public function __construct(
         public string $id,
+        public string $observationId,
         public SourceLocator $source,
         public Producer $producer,
         public ?DateTimeImmutable $occurredAt,

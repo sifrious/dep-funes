@@ -71,6 +71,10 @@ Funes models stable entities separately from the external identities assigned by
 
 Portable callers use `EntityReference` with a fixed `EntityKind` and a namespaced opaque identifier such as `github:R_kgDOExample`. Numeric host database IDs and unqualified display names are rejected at the boundary.
 
+The package-bound `IdentityRegistry` resolves an `ExternalIdentityClaim` to a stable Funes entity reference. A claim combines an entity kind, source reference, opaque external identifier, and provenance assertion. Repeating the same claim returns the same `funes:` reference and does not duplicate identity evidence. A later observation of the same source identifier adds provenance to that entity. Different external identifiers remain different entities; Funes does not infer cross-source equivalence.
+
+`IdentityRegistry::find()` queries by kind, source, and exact external identifier. `get()` queries by a stable Funes `EntityReference`. Both return preserved external identifiers and their provenance evidence.
+
 Typed relationships can preserve facts such as:
 
 - one message replying to another;
