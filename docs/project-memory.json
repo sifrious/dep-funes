@@ -26,7 +26,10 @@
         "Pre-contract observation JSON is returned under the explicit funes:legacy metadata namespace without rewriting stored history.",
         "Historical text is preserved as immutable namespaced assertions linked to observation provenance.",
         "Textual raw payloads are exposed as funes:source-payload assertions whose content identity is the payload hash.",
-        "The text projection is disposable and rebuilds completely from authoritative observations, payloads, and text assertions."
+        "The text projection is disposable and rebuilds completely from authoritative observations, payloads, and text assertions.",
+        "Cross-package references serialize owner, object type, stable identifier, optional object version, and optional provenance reference under contract version 1.",
+        "Mixed reference batches are grouped and resolved once per owning package with explicit outcomes for every requested reference.",
+        "Aleph observation and artifact references and Kilgore interpretation references pass the shared contract without model imports or private-table access."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -100,6 +103,14 @@
         {
             "decision": "Defer full-text query behavior and search-engine selection.",
             "rationale": "Stage 1 requires recoverable text and a rebuildable projection seam; ranking, tokenization, and search infrastructure belong to the later index and query stage."
+        },
+        {
+            "decision": "Represent cross-package identity as a versioned durable reference distinct from display snapshots.",
+            "rationale": "Owning packages can change, remove, or restrict current state while historical consumers retain stable identity and the display context observed at the time."
+        },
+        {
+            "decision": "Route mixed reference batches to owner-controlled resolvers.",
+            "rationale": "One batch call per owner prevents N+1 access while leaving authorization and canonical mutable state with the package that owns them."
         }
     ],
     "open_questions": [],
@@ -120,7 +131,10 @@
         "New structured metadata requires a namespaced identifier, non-empty schema version, JSON-encodable attributes, and provenance linkage.",
         "Metadata is excluded from observation identity and has no update or delete operation.",
         "Historical text requires a namespaced kind, content type, non-empty content, optional valid language, and provenance linkage.",
-        "The text projection is never authoritative and must be completely rebuildable without provider access."
+        "The text projection is never authoritative and must be completely rebuildable without provider access.",
+        "Cross-package references never depend on another package's model class or private table.",
+        "The owning package must authorize every resolution request and return a complete explicit result set.",
+        "Snapshots are display and search copies and never replace durable references or canonical owner state."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -141,7 +155,10 @@
         "producer_context": "The producer identity and ingestion-run reference through which Funes received or derived a record.",
         "metadata_assertion": "An immutable namespaced, schema-versioned attribute document linked to the provenance that supplied it.",
         "text_assertion": "Immutable namespaced historical text linked to an observation and its accepting provenance.",
-        "text_projection": "A disposable adapter-ready copy of authoritative source payload text and text assertions."
+        "text_projection": "A disposable adapter-ready copy of authoritative source payload text and text assertions.",
+        "cross_package_reference": "A versioned durable value naming an owning package, stable object type, opaque identifier, optional object version, and optional provenance reference.",
+        "reference_snapshot": "A non-authoritative display or search copy attached to a durable cross-package reference.",
+        "reference_resolution": "An owner-issued available, unavailable, tombstoned, superseded, or unauthorized outcome for one durable reference."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -152,6 +169,7 @@
         "record_metadata": ["validate namespace, schema version, and JSON attributes", "resolve the observation and accepting provenance", "append or reuse the metadata assertion", "return all assertions in deterministic order"],
         "record_text": ["validate kind, content type, content, and language", "resolve the observation and accepting provenance", "append or reuse the text assertion", "return all source and attached text in deterministic order"],
         "rebuild_text_projection": ["delete disposable projection rows", "copy authoritative attached text", "copy authoritative textual source payloads", "return adapter-ready documents with observation and provenance references"],
+        "resolve_cross_package_references": ["deduplicate durable references", "group the batch by owning package", "pass caller access context to each owner once", "require one explicit resolution per reference", "retain durable identities and any historical snapshots"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],

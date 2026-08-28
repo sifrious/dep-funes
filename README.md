@@ -73,6 +73,14 @@ Funes models stable entities separately from the external identities assigned by
 
 Portable callers use `EntityReference` with a fixed `EntityKind` and a namespaced opaque identifier such as `github:R_kgDOExample`. Numeric host database IDs and unqualified display names are rejected at the boundary.
 
+Cross-package callers use `CrossPackageReference`, whose versioned serialized form contains the owning package, stable object type, opaque identifier, optional object version, and optional provenance reference. A Funes-backed reference can name a Funes provenance assertion without making Funes the owner of the referenced package's current entity. The serialized value is safe to persist or place in queues, events, and API payloads; equality uses the complete durable representation.
+
+`ReferenceSnapshot` is a copied label and attribute document for display or search. It never replaces the durable reference and is not canonical state. Historical consumers may retain a snapshot when an owner later reports the reference as tombstoned or superseded.
+
+Resolution occurs only through the owning package's `ReferenceOwnerResolver`. The shared `ReferenceDirectory` groups a mixed batch by owner and calls each owner once. Owners receive the caller's `ReferenceAccess`, enforce their own authorization, and return an explicit `available`, `unavailable`, `tombstoned`, `superseded`, or `unauthorized` outcome for every reference. Missing or extra outcomes fail the batch rather than becoming `null`. Unknown owners resolve explicitly as unavailable. Direct joins against another package's private tables are not part of this contract.
+
+The contract tests exercise two real Landing graph boundaries: Aleph-owned observations and artifacts, including Funes provenance, and Kilgore-owned interpretations used as secondary-package relations. The fixtures use only the public reference and resolver contract; Funes imports neither package's model or storage classes.
+
 The package-bound `IdentityRegistry` resolves an `ExternalIdentityClaim` to a stable Funes entity reference. A claim combines an entity kind, source reference, opaque external identifier, and provenance assertion. Repeating the same claim returns the same `funes:` reference and does not duplicate identity evidence. A later observation of the same source identifier adds provenance to that entity. Different external identifiers remain different entities; Funes does not infer cross-source equivalence.
 
 `IdentityRegistry::find()` queries by kind, source, and exact external identifier. `get()` queries by a stable Funes `EntityReference`. Both return preserved external identifiers and their provenance evidence.

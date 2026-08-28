@@ -49,3 +49,11 @@ Namespaced text assertions append beside the observation and link to accepting p
 raw payloads remain available as source-payload assertions. A separate projection can be deleted
 and rebuilt entirely from those authoritative records. Search ranking, tokenization, and engine
 selection are not part of this seam.
+
+## D-008 — Cross-package identity travels as a reference, never a foreign model
+
+The durable cross-package representation names an owning package, stable object type, opaque
+identifier, optional object version, and optional provenance reference. Display and search copies
+are explicitly non-authoritative snapshots. Resolution is batch-only at the shared boundary and
+routes to the owner, which retains authorization and returns a complete set of explicit outcomes.
+No package uses another package's private tables or model classes as its normal integration seam.

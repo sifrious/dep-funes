@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-it('does not import Aleph', function (): void {
+it('does not import host or foreign package models', function (): void {
     $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/src'));
     $source = '';
 
@@ -12,5 +12,7 @@ it('does not import Aleph', function (): void {
         }
     }
 
-    expect($source)->not->toContain('Sifrious\\Aleph');
+    expect($source)->not->toContain('Sifrious\\Aleph')
+        ->and($source)->not->toContain('Sifrious\\Kilgore')
+        ->and($source)->not->toContain('App\\Models');
 });
