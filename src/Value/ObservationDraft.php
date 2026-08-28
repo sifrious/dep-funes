@@ -15,7 +15,7 @@ final readonly class ObservationDraft
         public string $resourceReference,
         public DateTimeImmutable $observedAt,
         public string $payload,
-        public string $mediaType = 'application/octet-stream',
+        public string $contentType = 'application/octet-stream',
         public mixed $metadata = [],
         public mixed $discoveries = [],
     ) {

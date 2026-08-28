@@ -22,7 +22,7 @@ function observationDraft(
         resourceReference: 'https://example.test/articles/one',
         observedAt: new DateTimeImmutable($observedAt),
         payload: $payload,
-        mediaType: 'text/html',
+        contentType: 'text/html',
         metadata: ['status' => 200],
         discoveries: [new Discovery('https://example.test/articles/two', 'link')],
     );
@@ -38,9 +38,14 @@ it('atomically accepts and reads a recoverable observation by source reference',
         ->and($found?->id)->toBe($accepted->observation->id)
         ->and($found?->payload)->toBe('<html>first</html>')
         ->and($found?->payloadHash)->toBe(hash('sha256', '<html>first</html>'))
+        ->and($found?->contentType)->toBe('text/html')
+        ->and($found?->ingestedAt)->toBeInstanceOf(DateTimeImmutable::class)
         ->and($found?->resourceReference)->toBe('https://example.test/articles/one')
         ->and($found?->discoveries)->toHaveCount(1)
-        ->and($found?->discoveries[0]->canonicalReference)->toBe('https://example.test/articles/two');
+        ->and($found?->discoveries[0]->canonicalReference)->toBe('https://example.test/articles/two')
+        ->and(DB::table('funes_payloads')->value('byte_size'))->toBe(strlen('<html>first</html>'))
+        ->and(DB::table('funes_observations')->value('content_type'))->toBe('text/html')
+        ->and(DB::table('funes_observations')->value('ingested_at'))->not->toBeNull();
 });
 
 it('returns the original observation when acceptance is repeated', function (): void {

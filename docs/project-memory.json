@@ -6,7 +6,8 @@
         "Extraction successes and failures are immutable records keyed by observation, extractor, and extractor version.",
         "A canonical resource and payload hash identify one historical effect; a new payload hash creates a new observation."
         ,"Observation acceptance returns an explicit first, unchanged, or changed disposition.",
-        "Discovery provenance is queryable from a child resource back to its parent resource and observation."
+        "Discovery provenance is queryable from a child resource back to its parent resource and observation.",
+        "Landing is the complete master application schema and source of truth for shared database vocabulary; Funes only appends prefixed history tables."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -32,6 +33,10 @@
         {
             "decision": "Return acceptance disposition with every accepted observation.",
             "rationale": "Callers need to distinguish first, unchanged, and changed content without reconstructing the decision from storage."
+        },
+        {
+            "decision": "Use landing's names for database concepts shared with Funes.",
+            "rationale": "The master schema must retain every landing table and column while Funes adds only new prefixed tables; payload and observation fields therefore use byte_size, content_type, and ingested_at."
         }
     ],
     "open_questions": [],

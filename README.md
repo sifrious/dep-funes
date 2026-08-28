@@ -105,6 +105,8 @@ Funes is guided by a small set of constraints:
 
 The first executable slice is a database-backed observation store. Run the package migrations, then resolve `Sifrious\Funes\Persistence\ObservationStore` from the Laravel container.
 
+Landing is the master application schema and the source of truth for shared database vocabulary. Funes appends only `funes_*` history tables. Its overlapping storage names follow landing: raw payload length is `byte_size`, the received header is `content_type`, and local acceptance time is `ingested_at`.
+
 `accept()` takes an `ObservationDraft` containing a source reference, canonical resource reference, observation time, raw payload, metadata, and optional discoveries. It returns an `AcceptedObservation` with the stable observation and an explicit `first`, `unchanged`, or `changed` disposition. Acceptance is transactional and idempotent by canonical resource and payload hash. Retrieving the same resource with identical content returns its existing observation; changed content appends a new immutable observation.
 
 `find()` recovers the latest immutable observation and its original payload by source and canonical resource reference. `get()` recovers any historical observation by its immutable ID. `discoveriesTo()` resolves a discovered resource back to its parent resources and observations. `recordExtraction()` appends an idempotent success or failure identified by observation, extractor, and extractor version. The configured database connection is read from `funes.connection`; `null` uses Laravel's default connection.

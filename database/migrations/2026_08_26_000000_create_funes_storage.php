@@ -29,7 +29,7 @@ return new class extends Migration
         Schema::create('funes_payloads', function (Blueprint $table): void {
             $table->char('hash', 64)->primary();
             $table->binary('contents');
-            $table->unsignedBigInteger('size');
+            $table->unsignedBigInteger('byte_size');
             $table->timestampTz('created_at');
         });
 
@@ -38,11 +38,11 @@ return new class extends Migration
             $table->foreignUlid('source_id')->constrained('funes_sources');
             $table->foreignUlid('resource_id')->constrained('funes_resources');
             $table->char('payload_hash', 64);
-            $table->string('media_type');
+            $table->string('content_type');
             $table->char('fingerprint', 64);
             $table->json('metadata');
             $table->timestampTz('observed_at');
-            $table->timestampTz('accepted_at');
+            $table->timestampTz('ingested_at');
             $table->unique(['resource_id', 'payload_hash']);
             $table->foreign('payload_hash')->references('hash')->on('funes_payloads');
         });

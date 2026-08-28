@@ -40,7 +40,7 @@ final class SqlObservationStore implements ObservationStore
             $this->connection->table('funes_payloads')->insertOrIgnore([
                 'hash' => $payloadHash,
                 'contents' => $draft->payload,
-                'size' => strlen($draft->payload),
+                'byte_size' => strlen($draft->payload),
                 'created_at' => $now,
             ]);
 
@@ -50,11 +50,11 @@ final class SqlObservationStore implements ObservationStore
                 'source_id' => $sourceId,
                 'resource_id' => $resourceId,
                 'payload_hash' => $payloadHash,
-                'media_type' => $draft->mediaType,
+                'content_type' => $draft->contentType,
                 'fingerprint' => $fingerprint,
                 'metadata' => $metadata,
                 'observed_at' => $draft->observedAt,
-                'accepted_at' => $now,
+                'ingested_at' => $now,
             ]);
 
             $row = $this->observationRow($resourceId, $payloadHash);
@@ -243,10 +243,10 @@ final class SqlObservationStore implements ObservationStore
             (string) $source->name,
             (string) $resource->canonical_reference,
             new DateTimeImmutable((string) $row->observed_at),
-            new DateTimeImmutable((string) $row->accepted_at),
+            new DateTimeImmutable((string) $row->ingested_at),
             (string) $payload->contents,
             (string) $row->payload_hash,
-            (string) $row->media_type,
+            (string) $row->content_type,
             $this->decode((string) $row->metadata),
             $discoveries,
         );

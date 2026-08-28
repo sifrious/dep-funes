@@ -14,10 +14,10 @@ final readonly class Observation
         public string $sourceName,
         public string $resourceReference,
         public DateTimeImmutable $observedAt,
-        public DateTimeImmutable $acceptedAt,
+        public DateTimeImmutable $ingestedAt,
         public string $payload,
         public string $payloadHash,
-        public string $mediaType,
+        public string $contentType,
         public mixed $metadata,
         public mixed $discoveries,
     ) {}
