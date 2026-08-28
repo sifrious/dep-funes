@@ -108,6 +108,28 @@ The stronger `caused-by` and `child-of` types require a `RelationshipDeclaration
 
 Exact retries reuse the declaration. A later source encounter appends another declaration assertion with its provenance while retaining one relationship fact. Direction is explicit: the source observation was caused by, or is a child of, the target historical event reference.
 
+## Cross-package events and delivery
+
+Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract
+requires one stable event ID, event type, producing package, event contract version, occurrence and
+recording times, at least one durable subject reference, and a payload. Observation time, causation,
+correlation, provenance references, source metadata, and a subject-owned stream position remain
+explicit when applicable. Aleph observations, Titan work transitions, and Logres runtime events use
+the same envelope without importing each other's models.
+
+The event ID is the idempotency key at every consumer boundary. Consumers retain the event fingerprint
+with their accepted result: exact redelivery returns the original result without a second effect, while
+the same ID with different immutable content is a conflict. At-least-once delivery is the baseline.
+No global ordering is implied; an optional `EventStreamPosition` orders events only within its exact
+durable stream reference.
+
+`DeliveryAttempt` is a separate immutable contract naming the event ID and fingerprint. A started,
+succeeded, retryable-failure, or dead-lettered attempt cannot alter the original event. Retryable
+failures require a later retry time; dead-lettered attempts require a durable dead-letter reference.
+Transport adapters own dispatch, retry scheduling, and dead-letter operation. Funes may preserve the
+event, subjects, payload, and provenance as history, while Logres or another coordinator retains
+authority over current execution state.
+
 ## Retrieval and long-term memory
 
 Funes is intended to support structured, textual, and optional semantic retrieval over preserved history. Consumers should be able to search by entity, project, agent, source, time range, record type, tags, and metadata; reconstruct the history surrounding a moment; produce timelines; and traverse relationships.

@@ -79,3 +79,18 @@ or infer causal and parent-child semantics that the supplied evidence did not st
 namespaced source-field locator and the declared source value, linked to the observation provenance
 that carried it. Repeated evidence appends declaration assertions without duplicating the relation.
 General relatedness, ordering, or adjacency is never promoted into causality.
+
+## D-012 — Event facts and delivery attempts are separate immutable contracts
+
+A cross-package event carries stable identity, producing package, event type and version, temporal
+coordinates, durable subject references, causation, correlation, provenance, source metadata, and
+payload under one versioned envelope. Its event ID is the consumer idempotency key; its complete
+serialized value supplies a fingerprint that exposes conflicting reuse. Delivery attempts name the
+event ID and fingerprint but never embed or mutate the event. The baseline is at-least-once delivery,
+so consumers persist accepted event IDs and must return the original effect on exact replay.
+
+Ordering exists only as an optional position within a named durable stream. There is no global
+sequence and no comparison across streams. Retryable failure, success, and dead-letter outcomes are
+new delivery-attempt facts. Funes may preserve an event and its provenance as history, but transport,
+retry scheduling, dead-letter operation, and current execution lifecycle remain with Logres or the
+other coordinating package.

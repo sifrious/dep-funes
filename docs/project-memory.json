@@ -37,7 +37,13 @@
         "Historical relationship facts deduplicate independently from append-only relationship provenance.",
         "Incoming and outgoing historical relationships are retrievable in deterministic order.",
         "Caused-by and child-of relationships require a preserved namespaced source field and declared value.",
-        "Explicit causal and parent declarations retain the observation provenance that supplied them and remain idempotent across retries."
+        "Explicit causal and parent declarations retain the observation provenance that supplied them and remain idempotent across retries.",
+        "Cross-package events serialize stable identity, producer, type, version, temporal coordinates, subject references, causation, correlation, provenance, source metadata, payload, and optional stream position under contract version 1.",
+        "Event identity is the consumer idempotency key, while a fingerprint of the complete immutable envelope exposes conflicting reuse.",
+        "Delivery attempts are immutable records separate from event facts and represent started, succeeded, retryable-failure, or dead-lettered outcomes.",
+        "Ordering exists only within an explicitly named durable stream; cross-stream and global ordering are not defined.",
+        "Aleph observation, Titan work-lifecycle, and Logres runtime fixtures round-trip through the same event envelope.",
+        "Funes may preserve accepted event facts and provenance without owning transport retries or current execution lifecycle state."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -131,6 +137,10 @@
         {
             "decision": "Require a source declaration for causal and parent-child relationship types.",
             "rationale": "A preserved field locator and declared value distinguish source evidence from an inference based on adjacency or general relatedness."
+        },
+        {
+            "decision": "Separate immutable cross-package event facts from immutable delivery-attempt records.",
+            "rationale": "At-least-once transports need replay-safe event identity while retries, failures, and dead-letter handling evolve without rewriting historical facts or moving execution authority into Funes."
         }
     ],
     "open_questions": [],
@@ -161,7 +171,14 @@
         "Internal Funes observation targets must exist before a relationship is accepted.",
         "General historical relationship types do not imply causality or parent-child structure.",
         "Caused-by and child-of relationships cannot be created without a namespaced declaration locator and non-empty declared value.",
-        "A declaration assertion must link to the same observation provenance that supplied its relationship."
+        "A declaration assertion must link to the same observation provenance that supplied its relationship.",
+        "Every cross-package event requires stable identity, producing package, type, event version, occurrence and recording times, at least one durable subject, and a JSON object payload.",
+        "Event occurrence, optional observation, and recording times must be chronological.",
+        "Consumers use the event ID as an idempotency key and compare the complete envelope fingerprint before reusing a prior effect.",
+        "Delivery is assumed at least once; exact retries cannot create a second canonical consumer effect.",
+        "No event contract field implies global ordering; a stream position applies only within its exact stream reference.",
+        "Retry and dead-letter metadata cannot mutate or replace the original event.",
+        "Funes does not dispatch events, schedule retries, operate dead-letter queues, or own current execution lifecycle state."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -190,7 +207,11 @@
         "association_provenance": "An append-only link recording which observation provenance assertion supplied an entity association fact.",
         "historical_relationship": "An immutable typed link from one observation to another historical event reference without embedding the target record.",
         "relationship_provenance": "An append-only link recording which observation provenance assertion supplied a historical relationship fact.",
-        "relationship_declaration": "A preserved namespaced source field and value proving that a source explicitly declared a causal or parent-child relation."
+        "relationship_declaration": "A preserved namespaced source field and value proving that a source explicitly declared a causal or parent-child relation.",
+        "event_envelope": "A versioned immutable cross-package event fact with stable identity, producer, subjects, temporal coordinates, workflow links, provenance, and payload.",
+        "event_fingerprint": "The SHA-256 identity of a complete serialized event envelope used to expose conflicting reuse of an event ID.",
+        "event_stream_position": "An optional positive sequence scoped to one exact durable stream reference and never a global order.",
+        "delivery_attempt": "An immutable started, succeeded, retryable-failure, or dead-lettered outcome associated with an unchanged event ID and fingerprint."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -207,6 +228,8 @@
         "record_historical_relationships": ["validate the non-causal relationship type and event target", "verify internal Funes targets", "accept or reuse the immutable relationship fact", "append or reuse its source provenance link"],
         "traverse_historical_relationships": ["query outgoing links from an observation or incoming links to an exact event reference", "recover relationship provenance", "return source and target identities without duplicating either event"],
         "record_declared_relationship": ["require caused-by or child-of semantics", "validate the namespaced source field and declared value", "accept or reuse the relationship fact", "append or reuse the declaration linked to accepting provenance", "never infer causality from an ordinary relation"],
+        "consume_cross_package_event": ["validate the versioned immutable envelope", "look up the event ID at the consumer boundary", "return the original accepted result when the stored fingerprint matches", "reject conflicting reuse when the fingerprint differs", "record a separate delivery outcome", "leave transport and current lifecycle authority with the coordinating package"],
+        "retry_event_delivery": ["retain the unchanged event ID and fingerprint", "append a retryable failure with a later retry time", "resume with a higher attempt number", "append success or a durable dead-letter reference without rewriting the event"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],
@@ -223,6 +246,16 @@
             "audience": "application developers",
             "skill_level": "intermediate",
             "hook": "Idempotency should detect disagreement, not merely hide duplicates."
+        },
+        {
+            "format": "post",
+            "user_problem": "Shared events accumulate transport state and become mutable coordination objects.",
+            "concept": "Separate immutable event facts from delivery-attempt facts",
+            "technology": "Versioned PHP value objects and cross-package references",
+            "project_context": "Funes cross-package event contract",
+            "audience": "package and distributed-system developers",
+            "skill_level": "advanced",
+            "hook": "A retry is a new delivery fact, not a new event and not an edit to the old one."
         }
     ]
 }
