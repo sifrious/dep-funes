@@ -15,6 +15,8 @@ final readonly class ExtractionDraft
         public mixed $result = null,
         public ?string $failure = null,
     ) {
+        new DerivationProcess($extractor, $version);
+
         if (($result === null) === ($failure === null) || ($result !== null && ! is_array($result))) {
             throw new InvalidArgumentException('An extraction must contain either a result or a failure.');
         }

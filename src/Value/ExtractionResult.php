@@ -22,4 +22,14 @@ final readonly class ExtractionResult
     {
         return $this->failure === null;
     }
+
+    public function type(): HistoricalRecordType
+    {
+        return HistoricalRecordType::Derived;
+    }
+
+    public function process(): DerivationProcess
+    {
+        return new DerivationProcess($this->extractor, $this->version);
+    }
 }

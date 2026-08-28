@@ -25,4 +25,9 @@ final readonly class Observation
         public mixed $discoveries,
         public array $provenance,
     ) {}
+
+    public function type(): HistoricalRecordType
+    {
+        return HistoricalRecordType::Observed;
+    }
 }

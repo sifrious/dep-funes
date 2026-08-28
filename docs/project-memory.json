@@ -14,7 +14,10 @@
         "Acceptance-gateway replay resolves the accepted observation and its provenance.",
         "Entity kind, source reference, and external identifier resolve to one stable Funes entity reference.",
         "Repeated identity claims reuse the entity and provenance evidence; later observations append evidence without duplicating the entity.",
-        "Identity queries return preserved external identifiers and provenance by either source identity or stable Funes reference."
+        "Identity queries return preserved external identifiers and provenance by either source identity or stable Funes reference.",
+        "Observations are explicitly typed observed; extraction results are explicitly typed derived.",
+        "Every derived extraction result names its evidence observation and a non-empty, versioned derivation process.",
+        "The observation acceptance seam rejects derived results by concrete type."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -60,6 +63,10 @@
         {
             "decision": "Do not infer cross-source identity equivalence.",
             "rationale": "Merging identifiers requires explicit evidence and belongs to the later entity-association contract."
+        },
+        {
+            "decision": "Keep observed and derived records on separate concrete acceptance seams.",
+            "rationale": "A generic record input would permit an interpretation to masquerade as source evidence; explicit types make that invalid state unrepresentable at the package API."
         }
     ],
     "open_questions": [],
@@ -72,7 +79,9 @@
         "Occurrence time cannot be later than observation time.",
         "Producer references and source locators must be non-empty package-owned values.",
         "An external identity claim must reference provenance from the same source.",
-        "Cross-source entity equivalence is never inferred from matching display values."
+        "Cross-source entity equivalence is never inferred from matching display values.",
+        "A derived record must reference an existing observation and a named, versioned process.",
+        "Observation acceptance never accepts a derived result."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -85,7 +94,10 @@
         "producer": "The stable identity and display name of the package or process that supplied an observation.",
         "provenance_assertion": "An immutable source, producer, temporal, and transformation-lineage path by which Funes knows an observation.",
         "external_identity": "An opaque source-owned identifier retained with the provenance that asserted it.",
-        "stable_entity": "A package-owned identity with a durable funes reference reused across historical records."
+        "stable_entity": "A package-owned identity with a durable funes reference reused across historical records.",
+        "observed_record": "A source observation accepted through ObservationDraft and always typed observed.",
+        "derived_record": "A later process result typed derived and linked to an evidence observation.",
+        "derivation_process": "The non-empty process name and version that produced a derived result."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -95,6 +107,7 @@
         "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
+        "record_derivation": ["verify the evidence observation", "validate the process name and version", "append or reuse the derived result", "return it as explicitly derived"],
         "retrieve_observation": ["resolve observation", "recover original payload", "recover every provenance assertion in deterministic order", "return source locators, producers, temporal coordinates, and transformation lineage"],
         "record_extraction": ["verify observation", "append versioned outcome", "commit"]
     },

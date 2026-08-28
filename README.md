@@ -47,6 +47,8 @@ Funes treats provenance as part of the record, not optional debugging metadata.
 
 Normalized representations remain connected to their original source material. Derived records such as classifications or summaries remain distinguishable from observed facts and retain references to the evidence used to produce them. When a source is corrected, Funes can preserve the correction without silently rewriting the earlier observation.
 
+The executable record seam uses `HistoricalRecordType::Observed` for `Observation` and `HistoricalRecordType::Derived` for `ExtractionResult`. A derived result always names the evidence observation and exposes a `DerivationProcess` with a non-empty name and version. Observation acceptance accepts only `ObservationDraft`; a derived result cannot be passed through that API as if it came from a source.
+
 This makes it possible to answer not only “What does the history say?” but also:
 
 - Where did this come from?

@@ -7,8 +7,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Sifrious\Funes\Persistence\ObservationConflict;
 use Sifrious\Funes\Persistence\ObservationStore;
+use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
+use Sifrious\Funes\Value\HistoricalRecordType;
 use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
 
@@ -157,11 +159,37 @@ it('records versioned extraction successes and failures without changing observa
     ));
 
     expect($success->succeeded())->toBeTrue()
+        ->and($observation->type())->toBe(HistoricalRecordType::Observed)
+        ->and($success->type())->toBe(HistoricalRecordType::Derived)
+        ->and($success->observationId)->toBe($observation->id)
+        ->and($success->process())->toEqual(new DerivationProcess('article', '1'))
         ->and($success->result)->toBe(['title' => 'First'])
         ->and($failure->succeeded())->toBeFalse()
         ->and($failure->failure)->toBe('Unsupported document')
         ->and($store->find('website:example', 'https://example.test/articles/one')?->payload)->toBe('<html>first</html>');
 });
+
+it('prevents a derived result from entering observation acceptance', function (): void {
+    $store = app(ObservationStore::class);
+    $observation = $store->accept(observationDraft())->observation;
+    $derived = $store->recordExtraction(new ExtractionDraft(
+        $observation->id,
+        'summary',
+        '1',
+        ['text' => 'A later interpretation'],
+    ));
+
+    $store->accept($derived);
+})->throws(TypeError::class);
+
+it('rejects an unnamed derivation process', function (): void {
+    new ExtractionDraft(
+        '01K00000000000000000000000',
+        '',
+        '1',
+        ['text' => 'A later interpretation'],
+    );
+})->throws(InvalidArgumentException::class);
 
 it('makes repeated extraction recording idempotent and rejects conflicting reuse', function (): void {
     $store = app(ObservationStore::class);

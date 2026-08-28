@@ -20,3 +20,10 @@ Entity kind, source reference, and exact external identifier resolve to one stab
 Repeated evidence reuses that entity, while later provenance is appended. Identifiers from different
 sources remain separate until an explicit, evidence-bearing association is recorded by a later
 relationship capability.
+
+## D-004 — Observed and derived records use separate concrete seams
+
+Observations always report the observed historical type. Extraction results always report the
+derived type and retain an evidence observation plus a named, versioned derivation process. Funes
+does not expose a generic record-acceptance method because it would allow interpretations to enter
+the source-observation path.
