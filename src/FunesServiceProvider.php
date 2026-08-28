@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sifrious\Funes;
 
 use Illuminate\Support\ServiceProvider;
+use Sifrious\Funes\Acceptance\AcceptanceGateway;
+use Sifrious\Funes\Acceptance\SqlAcceptanceGateway;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Persistence\SqlObservationStore;
 
@@ -19,7 +21,12 @@ class FunesServiceProvider extends ServiceProvider
 
             return new SqlObservationStore($connection);
         });
-    }
+            $this->app->singleton(AcceptanceGateway::class, fn ($app): AcceptanceGateway => new SqlAcceptanceGateway(
+            $app->make(\Illuminate\Database\DatabaseManager::class)->connection(),
+            $app->make(ObservationStore::class),
+        ));
+
+}
 
     public function boot(): void
     {
