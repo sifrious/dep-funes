@@ -8,6 +8,10 @@ use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
 use JsonException;
+use Sifrious\Funes\Association\EntityAssociation;
+use Sifrious\Funes\Association\EntityAssociationDraft;
+use Sifrious\Funes\Association\EntityAssociationRole;
+use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
@@ -69,6 +73,7 @@ final class SqlObservationStore implements ObservationStore
             $provenance = $this->storeProvenance((string) $row->id, $sourceId, $resourceId, $draft, $now);
             $this->storeMetadata((string) $row->id, (string) $provenance->id, $draft->metadata, $now);
             $this->storeText((string) $row->id, (string) $provenance->id, $draft->texts, $now);
+            $this->storeAssociations((string) $row->id, (string) $provenance->id, $draft->associations, $now);
             $this->storeDiscoveries((string) $row->id, $sourceId, $resourceId, $draft->discoveries, $now);
 
             return new AcceptedObservation(
@@ -102,6 +107,17 @@ final class SqlObservationStore implements ObservationStore
         $row = $this->connection->table('funes_observations')->where('id', $observationId)->first();
 
         return $row instanceof stdClass ? $this->hydrateObservation($row) : null;
+    }
+
+    public function associationsTo(CrossPackageReference $entity): array
+    {
+        return array_values($this->connection->table('funes_entity_associations')
+            ->where('entity_reference_key', $entity->key())
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $row): EntityAssociation => $this->hydrateAssociation($row))
+            ->all());
     }
 
     public function discoveriesTo(string $sourceReference, string $resourceReference): array
@@ -331,6 +347,50 @@ final class SqlObservationStore implements ObservationStore
         }
     }
 
+    /**
+     * @param  list<EntityAssociationDraft>  $associations
+     */
+    private function storeAssociations(
+        string $observationId,
+        string $provenanceId,
+        array $associations,
+        DateTimeImmutable $recordedAt,
+    ): void {
+        foreach ($associations as $association) {
+            $reference = $this->json($association->entity->toArray());
+            $fingerprint = hash('sha256', $this->json([
+                $observationId,
+                $association->role->value,
+                $association->entity->toArray(),
+            ]));
+
+            $this->connection->table('funes_entity_associations')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'observation_id' => $observationId,
+                'role' => $association->role->value,
+                'entity_reference' => $reference,
+                'entity_reference_key' => $association->entity->key(),
+                'fingerprint' => $fingerprint,
+                'recorded_at' => $recordedAt,
+            ]);
+
+            $associationId = $this->connection->table('funes_entity_associations')
+                ->where('fingerprint', $fingerprint)
+                ->value('id');
+
+            if (! is_string($associationId)) {
+                throw new ObservationConflict('The entity association could not be accepted.');
+            }
+
+            $this->connection->table('funes_entity_association_provenance')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'association_id' => $associationId,
+                'provenance_id' => $provenanceId,
+                'recorded_at' => $recordedAt,
+            ]);
+        }
+    }
+
     private function storeExtractionProvenance(
         string $extractionId,
         ProducerContext $producerContext,
@@ -462,6 +522,13 @@ final class SqlObservationStore implements ObservationStore
                 new DateTimeImmutable((string) $row->ingested_at),
             ));
         }
+        $associations = array_values($this->connection->table('funes_entity_associations')
+            ->where('observation_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): EntityAssociation => $this->hydrateAssociation($item))
+            ->all());
 
         return new Observation(
             (string) $row->id,
@@ -475,8 +542,30 @@ final class SqlObservationStore implements ObservationStore
             (string) $row->content_type,
             $metadata,
             $texts,
+            $associations,
             $discoveries,
             $provenance,
+        );
+    }
+
+    private function hydrateAssociation(stdClass $row): EntityAssociation
+    {
+        $reference = $this->decode((string) $row->entity_reference);
+        $provenanceIds = array_values($this->connection->table('funes_entity_association_provenance')
+            ->where('association_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->pluck('provenance_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all());
+
+        return new EntityAssociation(
+            (string) $row->id,
+            (string) $row->observation_id,
+            EntityAssociationRole::from((string) $row->role),
+            CrossPackageReference::fromArray($reference),
+            $provenanceIds,
+            new DateTimeImmutable((string) $row->recorded_at),
         );
     }
 

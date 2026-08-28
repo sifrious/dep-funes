@@ -96,6 +96,10 @@ Typed relationships can preserve facts such as:
 
 Relationships are retained with their own provenance so inferred connections do not become indistinguishable from source-reported facts.
 
+Entity associations are the first executable relationship seam. An `EntityAssociationDraft` assigns a validated `subject`, `actor`, `context`, `artifact`, or `target` role to a durable `CrossPackageReference`. The reference's stable object type supports projects, repositories, users, agents, conversations, files, tasks, and additional owner-defined entities without importing their models.
+
+Association facts are immutable and idempotent by observation, role, and complete reference. Repeated source evidence appends association-provenance links instead of duplicating the fact. Observations return their associations, filter them by role and optional entity type, and `ObservationStore::associationsTo()` traverses from an exact durable entity reference back to every associated historical observation. A source retry or owner-side entity change cannot rewrite the association that was observed.
+
 ## Retrieval and long-term memory
 
 Funes is intended to support structured, textual, and optional semantic retrieval over preserved history. Consumers should be able to search by entity, project, agent, source, time range, record type, tags, and metadata; reconstruct the history surrounding a moment; produce timelines; and traverse relationships.

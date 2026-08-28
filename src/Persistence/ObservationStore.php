@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sifrious\Funes\Persistence;
 
+use Sifrious\Funes\Association\EntityAssociation;
+use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\DiscoveryProvenance;
 use Sifrious\Funes\Value\ExtractionDraft;
@@ -18,6 +20,11 @@ interface ObservationStore
     public function find(string $sourceReference, string $resourceReference): ?Observation;
 
     public function get(string $observationId): ?Observation;
+
+    /**
+     * @return list<EntityAssociation>
+     */
+    public function associationsTo(CrossPackageReference $entity): array;
 
     /**
      * @return list<DiscoveryProvenance>

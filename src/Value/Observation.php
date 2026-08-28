@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Value;
 
 use DateTimeImmutable;
+use Sifrious\Funes\Association\EntityAssociation;
+use Sifrious\Funes\Association\EntityAssociationRole;
 
 final readonly class Observation
 {
     /**
      * @param  list<MetadataAssertion>  $metadata
      * @param  list<TextAssertion>  $texts
+     * @param  list<EntityAssociation>  $associations
      * @param  list<Provenance>  $provenance
      */
     public function __construct(
@@ -25,6 +28,7 @@ final readonly class Observation
         public string $contentType,
         public array $metadata,
         public array $texts,
+        public array $associations,
         public mixed $discoveries,
         public array $provenance,
     ) {}
@@ -54,6 +58,18 @@ final readonly class Observation
         return array_values(array_filter(
             $this->texts,
             fn (TextAssertion $text): bool => $text->kind === $kind,
+        ));
+    }
+
+    /**
+     * @return list<EntityAssociation>
+     */
+    public function associated(EntityAssociationRole $role, ?string $entityType = null): array
+    {
+        return array_values(array_filter(
+            $this->associations,
+            fn (EntityAssociation $association): bool => $association->role === $role
+                && ($entityType === null || $association->entity->type === $entityType),
         ));
     }
 }

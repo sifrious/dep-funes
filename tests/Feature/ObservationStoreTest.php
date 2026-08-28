@@ -5,8 +5,11 @@ declare(strict_types=1);
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Sifrious\Funes\Association\EntityAssociationDraft;
+use Sifrious\Funes\Association\EntityAssociationRole;
 use Sifrious\Funes\Persistence\ObservationConflict;
 use Sifrious\Funes\Persistence\ObservationStore;
+use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
@@ -24,6 +27,7 @@ function observationDraft(
     string $payload = '<html>first</html>',
     string $observedAt = '2026-08-26T12:00:00+00:00',
     ?array $metadata = null,
+    ?array $associations = null,
 ): ObservationDraft {
     return new ObservationDraft(
         sourceReference: 'website:example',
@@ -38,6 +42,7 @@ function observationDraft(
         transformationLineage: ['aleph:fetch/1'],
         contentType: 'text/html',
         metadata: $metadata ?? [new MetadataDraft('http:response', '1', ['status' => 200])],
+        associations: $associations ?? [],
         discoveries: [new Discovery('https://example.test/articles/two', 'link')],
     );
 }
@@ -96,6 +101,60 @@ it('does not duplicate an identical provenance assertion', function (): void {
         ->and(DB::table('funes_observation_provenance')->count())->toBe(1)
         ->and(DB::table('funes_observation_metadata')->count())->toBe(1);
 });
+
+it('returns typed entity associations with their own provenance', function (): void {
+    $store = app(ObservationStore::class);
+    $project = new CrossPackageReference('sifrious/landing', 'project', 'project_01');
+    $repository = new CrossPackageReference('sifrious/aleph', 'repository', 'github:R_01');
+    $user = new CrossPackageReference('sifrious/accounts', 'user', 'user_01');
+    $agent = new CrossPackageReference('sifrious/logres', 'agent', 'agent_01');
+    $conversation = new CrossPackageReference('sifrious/logres', 'conversation', 'conversation_01');
+    $file = new CrossPackageReference('sifrious/aleph', 'file', 'artifact_01');
+    $task = new CrossPackageReference('sifrious/titan', 'task', 'task_01');
+    $associations = [
+        new EntityAssociationDraft(EntityAssociationRole::Context, $project),
+        new EntityAssociationDraft(EntityAssociationRole::Context, $repository),
+        new EntityAssociationDraft(EntityAssociationRole::Actor, $user),
+        new EntityAssociationDraft(EntityAssociationRole::Actor, $agent),
+        new EntityAssociationDraft(EntityAssociationRole::Context, $conversation),
+        new EntityAssociationDraft(EntityAssociationRole::Artifact, $file),
+        new EntityAssociationDraft(EntityAssociationRole::Target, $task),
+    ];
+
+    $observation = $store->accept(observationDraft(associations: $associations))->observation;
+    $taskAssociations = $store->associationsTo($task);
+
+    expect($observation->associations)->toHaveCount(7)
+        ->and($observation->associated(EntityAssociationRole::Actor))->toHaveCount(2)
+        ->and($observation->associated(EntityAssociationRole::Context, 'repository'))->toHaveCount(1)
+        ->and($taskAssociations)->toHaveCount(1)
+        ->and($taskAssociations[0]->observationId)->toBe($observation->id)
+        ->and($taskAssociations[0]->entity->equals($task))->toBeTrue()
+        ->and($taskAssociations[0]->provenanceIds)->toBe([$observation->provenance[0]->id]);
+});
+
+it('keeps association facts idempotent while appending source provenance', function (): void {
+    $store = app(ObservationStore::class);
+    $project = new CrossPackageReference('sifrious/landing', 'project', 'project_01');
+    $association = new EntityAssociationDraft(EntityAssociationRole::Context, $project);
+
+    $first = $store->accept(observationDraft(associations: [$association]))->observation;
+    $retry = $store->accept(observationDraft(associations: [$association]))->observation;
+    $later = $store->accept(observationDraft(
+        observedAt: '2026-08-27T12:00:00+00:00',
+        associations: [$association],
+    ))->observation;
+
+    expect($retry->associations[0]->id)->toBe($first->associations[0]->id)
+        ->and($later->associations[0]->id)->toBe($first->associations[0]->id)
+        ->and($later->associations[0]->provenanceIds)->toHaveCount(2)
+        ->and(DB::table('funes_entity_associations')->count())->toBe(1)
+        ->and(DB::table('funes_entity_association_provenance')->count())->toBe(2);
+});
+
+it('rejects association inputs outside the typed contract', function (): void {
+    observationDraft(associations: ['project_01']);
+})->throws(InvalidArgumentException::class);
 
 it('appends namespaced metadata without changing observation identity', function (): void {
     $store = app(ObservationStore::class);

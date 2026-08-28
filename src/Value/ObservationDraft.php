@@ -6,6 +6,7 @@ namespace Sifrious\Funes\Value;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
+use Sifrious\Funes\Association\EntityAssociationDraft;
 
 final readonly class ObservationDraft
 {
@@ -18,6 +19,11 @@ final readonly class ObservationDraft
      * @var list<TextDraft>
      */
     public array $texts;
+
+    /**
+     * @var list<EntityAssociationDraft>
+     */
+    public array $associations;
 
     /**
      * @param  list<string>  $transformationLineage
@@ -36,6 +42,7 @@ final readonly class ObservationDraft
         public string $contentType = 'application/octet-stream',
         mixed $metadata = [],
         mixed $texts = [],
+        mixed $associations = [],
         public mixed $discoveries = [],
     ) {
         new SourceLocator($sourceReference, $sourceName, $resourceReference);
@@ -46,8 +53,8 @@ final readonly class ObservationDraft
             throw new InvalidArgumentException('Occurrence time cannot be later than observation time.');
         }
 
-        if (! is_array($metadata) || ! is_array($texts) || ! is_array($discoveries)) {
-            throw new InvalidArgumentException('Metadata, texts, and discoveries must be arrays.');
+        if (! is_array($metadata) || ! is_array($texts) || ! is_array($associations) || ! is_array($discoveries)) {
+            throw new InvalidArgumentException('Metadata, texts, associations, and discoveries must be arrays.');
         }
 
         $metadataItems = [];
@@ -73,6 +80,18 @@ final readonly class ObservationDraft
         }
 
         $this->texts = $textItems;
+
+        $associationItems = [];
+
+        foreach ($associations as $association) {
+            if (! $association instanceof EntityAssociationDraft) {
+                throw new InvalidArgumentException('Associations must contain only EntityAssociationDraft values.');
+            }
+
+            $associationItems[] = $association;
+        }
+
+        $this->associations = $associationItems;
 
         foreach ($discoveries as $discovery) {
             if (! $discovery instanceof Discovery) {
@@ -103,6 +122,7 @@ final readonly class ObservationDraft
             $this->contentType,
             $this->metadata,
             $this->texts,
+            $this->associations,
             $this->discoveries,
         );
     }

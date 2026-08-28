@@ -57,3 +57,11 @@ identifier, optional object version, and optional provenance reference. Display 
 are explicitly non-authoritative snapshots. Resolution is batch-only at the shared boundary and
 routes to the owner, which retains authorization and returns a complete set of explicit outcomes.
 No package uses another package's private tables or model classes as its normal integration seam.
+
+## D-009 — Entity association facts and their evidence have separate identities
+
+An entity association is identified by observation, typed role, and complete cross-package
+reference. Its source encounters are separate provenance links. Replaying identical evidence does
+not duplicate either record; encountering the same fact through later source provenance appends
+evidence without changing the association. Traversal compares the exact durable reference rather
+than a display value or foreign table key.
