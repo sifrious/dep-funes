@@ -72,3 +72,10 @@ A historical relationship stores its source observation, validated non-causal ty
 reference, and separate provenance links. Internal Funes observation targets must exist; portable
 external event references remain resolvable by their owner. The relation does not copy its target
 or infer causal and parent-child semantics that the supplied evidence did not state.
+
+## D-011 — Causal and parent-child types require preserved source declarations
+
+`caused-by` and `child-of` cannot be accepted from type and target alone. Each requires a
+namespaced source-field locator and the declared source value, linked to the observation provenance
+that carried it. Repeated evidence appends declaration assertions without duplicating the relation.
+General relatedness, ordering, or adjacency is never promoted into causality.

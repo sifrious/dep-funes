@@ -11,4 +11,11 @@ enum HistoricalRelationshipType: string
     case RespondsTo = 'responds-to';
     case Corrects = 'corrects';
     case Supersedes = 'supersedes';
+    case CausedBy = 'caused-by';
+    case ChildOf = 'child-of';
+
+    public function requiresDeclaration(): bool
+    {
+        return $this === self::CausedBy || $this === self::ChildOf;
+    }
 }

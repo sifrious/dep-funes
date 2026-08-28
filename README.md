@@ -104,6 +104,10 @@ Historical event relationships use a separate seam. An observation exposes its o
 
 Relationship facts deduplicate by source observation, type, and target reference. Their provenance links append independently as later source encounters confirm the same relation. `ObservationStore::relationshipsTo()` provides deterministic incoming traversal while `Observation::related()` filters outgoing relations. These types describe supplied relationships but do not claim causality or parentage; those stronger semantics require the later causal relationship contract and evidence.
 
+The stronger `caused-by` and `child-of` types require a `RelationshipDeclarationDraft`. The declaration preserves both a namespaced source field locator, such as `github:event/caused_by`, and the non-empty value supplied by that source. The accepted declaration is linked to the observation provenance that carried it. Ordinary `related` or temporal adjacency never becomes causal or hierarchical through inference.
+
+Exact retries reuse the declaration. A later source encounter appends another declaration assertion with its provenance while retaining one relationship fact. Direction is explicit: the source observation was caused by, or is a child of, the target historical event reference.
+
 ## Retrieval and long-term memory
 
 Funes is intended to support structured, textual, and optional semantic retrieval over preserved history. Consumers should be able to search by entity, project, agent, source, time range, record type, tags, and metadata; reconstruct the history surrounding a moment; produce timelines; and traverse relationships.

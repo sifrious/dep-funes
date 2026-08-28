@@ -35,7 +35,9 @@
         "Exact durable entity references traverse back to associated historical observations.",
         "Historical observations preserve related, references, responds-to, corrects, and supersedes links as target references rather than embedded records.",
         "Historical relationship facts deduplicate independently from append-only relationship provenance.",
-        "Incoming and outgoing historical relationships are retrievable in deterministic order."
+        "Incoming and outgoing historical relationships are retrievable in deterministic order.",
+        "Caused-by and child-of relationships require a preserved namespaced source field and declared value.",
+        "Explicit causal and parent declarations retain the observation provenance that supplied them and remain idempotent across retries."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -125,6 +127,10 @@
         {
             "decision": "Represent historical event relationships as typed references with separate provenance.",
             "rationale": "Related records remain canonical and independently retrievable while retries and later evidence do not duplicate or rewrite the relationship fact."
+        },
+        {
+            "decision": "Require a source declaration for causal and parent-child relationship types.",
+            "rationale": "A preserved field locator and declared value distinguish source evidence from an inference based on adjacency or general relatedness."
         }
     ],
     "open_questions": [],
@@ -153,7 +159,9 @@
         "Association traversal uses the complete durable reference rather than display values or foreign storage keys.",
         "Historical relationships target only observation, derived-record, or historical-event references.",
         "Internal Funes observation targets must exist before a relationship is accepted.",
-        "General historical relationship types do not imply causality or parent-child structure."
+        "General historical relationship types do not imply causality or parent-child structure.",
+        "Caused-by and child-of relationships cannot be created without a namespaced declaration locator and non-empty declared value.",
+        "A declaration assertion must link to the same observation provenance that supplied its relationship."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -181,7 +189,8 @@
         "entity_association": "An immutable typed role connecting one historical observation to one durable cross-package entity reference.",
         "association_provenance": "An append-only link recording which observation provenance assertion supplied an entity association fact.",
         "historical_relationship": "An immutable typed link from one observation to another historical event reference without embedding the target record.",
-        "relationship_provenance": "An append-only link recording which observation provenance assertion supplied a historical relationship fact."
+        "relationship_provenance": "An append-only link recording which observation provenance assertion supplied a historical relationship fact.",
+        "relationship_declaration": "A preserved namespaced source field and value proving that a source explicitly declared a causal or parent-child relation."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -197,6 +206,7 @@
         "traverse_entity_associations": ["hash the complete durable entity reference", "find matching immutable association facts", "recover every association provenance link", "return originating observation identities in deterministic order"],
         "record_historical_relationships": ["validate the non-causal relationship type and event target", "verify internal Funes targets", "accept or reuse the immutable relationship fact", "append or reuse its source provenance link"],
         "traverse_historical_relationships": ["query outgoing links from an observation or incoming links to an exact event reference", "recover relationship provenance", "return source and target identities without duplicating either event"],
+        "record_declared_relationship": ["require caused-by or child-of semantics", "validate the namespaced source field and declared value", "accept or reuse the relationship fact", "append or reuse the declaration linked to accepting provenance", "never infer causality from an ordinary relation"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],

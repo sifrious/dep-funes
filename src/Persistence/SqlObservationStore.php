@@ -15,6 +15,7 @@ use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 use Sifrious\Funes\Relationship\HistoricalRelationshipType;
+use Sifrious\Funes\Relationship\RelationshipDeclaration;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
@@ -452,6 +453,23 @@ final class SqlObservationStore implements ObservationStore
                 'provenance_id' => $provenanceId,
                 'recorded_at' => $recordedAt,
             ]);
+
+            if ($relationship->declaration !== null) {
+                $this->connection->table('funes_relationship_declarations')->insertOrIgnore([
+                    'id' => (string) Str::ulid(),
+                    'relationship_id' => $relationshipId,
+                    'provenance_id' => $provenanceId,
+                    'source_locator' => $relationship->declaration->sourceLocator,
+                    'declared_value' => $relationship->declaration->declaredValue,
+                    'fingerprint' => hash('sha256', $this->json([
+                        $relationshipId,
+                        $provenanceId,
+                        $relationship->declaration->sourceLocator,
+                        $relationship->declaration->declaredValue,
+                    ])),
+                    'recorded_at' => $recordedAt,
+                ]);
+            }
         }
     }
 
@@ -651,6 +669,19 @@ final class SqlObservationStore implements ObservationStore
             ->pluck('provenance_id')
             ->map(fn (mixed $id): string => (string) $id)
             ->all());
+        $declarations = array_values($this->connection->table('funes_relationship_declarations')
+            ->where('relationship_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): RelationshipDeclaration => new RelationshipDeclaration(
+                (string) $item->id,
+                (string) $item->provenance_id,
+                (string) $item->source_locator,
+                (string) $item->declared_value,
+                new DateTimeImmutable((string) $item->recorded_at),
+            ))
+            ->all());
 
         return new HistoricalRelationship(
             (string) $row->id,
@@ -658,6 +689,7 @@ final class SqlObservationStore implements ObservationStore
             HistoricalRelationshipType::from((string) $row->type),
             CrossPackageReference::fromArray($target),
             $provenanceIds,
+            $declarations,
             new DateTimeImmutable((string) $row->recorded_at),
         );
     }

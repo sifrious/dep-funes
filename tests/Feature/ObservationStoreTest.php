@@ -13,6 +13,7 @@ use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 use Sifrious\Funes\Relationship\HistoricalRelationshipType;
+use Sifrious\Funes\Relationship\RelationshipDeclarationDraft;
 use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
@@ -225,6 +226,78 @@ it('rejects non-event and missing internal historical references', function (): 
     expect(fn () => $store->accept(observationDraft(relationships: [$missing])))
         ->toThrow(ObservationNotFound::class)
         ->and(DB::table('funes_observations')->count())->toBe(0);
+});
+
+it('preserves explicit causal and parent declarations with provenance', function (): void {
+    $store = app(ObservationStore::class);
+    $parent = $store->accept(observationDraft())->observation;
+    $causal = new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::CausedBy,
+        $parent->reference(),
+        new RelationshipDeclarationDraft('github:event/caused_by', 'delivery_01'),
+    );
+    $hierarchy = new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::ChildOf,
+        $parent->reference(),
+        new RelationshipDeclarationDraft('linear:issue/parent_id', 'MME-100'),
+    );
+    $child = $store->accept(observationDraft(
+        payload: '<html>declared child</html>',
+        observedAt: '2026-08-27T12:00:00+00:00',
+        relationships: [$causal, $hierarchy],
+    ))->observation;
+
+    expect($child->related(HistoricalRelationshipType::CausedBy))->toHaveCount(1)
+        ->and($child->related(HistoricalRelationshipType::ChildOf))->toHaveCount(1)
+        ->and($child->relationships[0]->declarations[0]->sourceLocator)->toBe('github:event/caused_by')
+        ->and($child->relationships[0]->declarations[0]->declaredValue)->toBe('delivery_01')
+        ->and($child->relationships[0]->declarations[0]->provenanceId)->toBe($child->provenance[0]->id)
+        ->and($child->relationships[1]->declarations[0]->sourceLocator)->toBe('linear:issue/parent_id')
+        ->and(DB::table('funes_relationship_declarations')->count())->toBe(2);
+});
+
+it('requires declarations for causal semantics and never promotes an ordinary relation', function (): void {
+    $target = new CrossPackageReference('sifrious/funes', 'observation', '01K00000000000000000000000');
+
+    expect(fn () => new HistoricalRelationshipDraft(HistoricalRelationshipType::CausedBy, $target))
+        ->toThrow(InvalidArgumentException::class)
+        ->and(fn () => new HistoricalRelationshipDraft(HistoricalRelationshipType::ChildOf, $target))
+        ->toThrow(InvalidArgumentException::class)
+        ->and(new HistoricalRelationshipDraft(HistoricalRelationshipType::Related, $target)->declaration)->toBeNull()
+        ->and(fn () => new RelationshipDeclarationDraft('caused_by', 'delivery_01'))
+        ->toThrow(InvalidArgumentException::class)
+        ->and(fn () => new RelationshipDeclarationDraft('github:event/caused_by', ''))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+it('keeps explicit relationship declarations idempotent across retries', function (): void {
+    $store = app(ObservationStore::class);
+    $cause = $store->accept(observationDraft())->observation;
+    $relationship = new HistoricalRelationshipDraft(
+        HistoricalRelationshipType::CausedBy,
+        $cause->reference(),
+        new RelationshipDeclarationDraft('github:event/caused_by', 'delivery_01'),
+    );
+    $draft = observationDraft(
+        payload: '<html>effect</html>',
+        observedAt: '2026-08-27T12:00:00+00:00',
+        relationships: [$relationship],
+    );
+
+    $first = $store->accept($draft)->observation;
+    $retry = $store->accept($draft)->observation;
+    $later = $store->accept(observationDraft(
+        payload: '<html>effect</html>',
+        observedAt: '2026-08-28T12:00:00+00:00',
+        relationships: [$relationship],
+    ))->observation;
+
+    expect($retry->relationships[0]->id)->toBe($first->relationships[0]->id)
+        ->and($later->relationships[0]->id)->toBe($first->relationships[0]->id)
+        ->and($later->relationships[0]->declarations)->toHaveCount(2)
+        ->and($later->relationships[0]->provenanceIds)->toHaveCount(2)
+        ->and(DB::table('funes_historical_relationships')->count())->toBe(1)
+        ->and(DB::table('funes_relationship_declarations')->count())->toBe(2);
 });
 
 it('appends namespaced metadata without changing observation identity', function (): void {
