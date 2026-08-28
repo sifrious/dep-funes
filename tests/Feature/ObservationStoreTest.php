@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Sifrious\Funes\Persistence\ObservationConflict;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Value\Discovery;
@@ -20,8 +22,12 @@ function observationDraft(
         sourceReference: 'website:example',
         sourceName: 'Example website',
         resourceReference: 'https://example.test/articles/one',
+        producerReference: 'aleph:connector/web',
+        producerName: 'Aleph web connector',
         observedAt: new DateTimeImmutable($observedAt),
         payload: $payload,
+        occurredAt: new DateTimeImmutable('2026-08-26T11:55:00+00:00'),
+        transformationLineage: ['aleph:fetch/1'],
         contentType: 'text/html',
         metadata: ['status' => 200],
         discoveries: [new Discovery('https://example.test/articles/two', 'link')],
@@ -41,6 +47,11 @@ it('atomically accepts and reads a recoverable observation by source reference',
         ->and($found?->contentType)->toBe('text/html')
         ->and($found?->ingestedAt)->toBeInstanceOf(DateTimeImmutable::class)
         ->and($found?->resourceReference)->toBe('https://example.test/articles/one')
+        ->and($found?->provenance)->toHaveCount(1)
+        ->and($found?->provenance[0]->source->resourceReference)->toBe('https://example.test/articles/one')
+        ->and($found?->provenance[0]->producer->reference)->toBe('aleph:connector/web')
+        ->and($found?->provenance[0]->occurredAt?->format(DATE_ATOM))->toBe('2026-08-26T11:55:00+00:00')
+        ->and($found?->provenance[0]->transformationLineage)->toBe(['aleph:fetch/1'])
         ->and($found?->discoveries)->toHaveCount(1)
         ->and($found?->discoveries[0]->canonicalReference)->toBe('https://example.test/articles/two')
         ->and(DB::table('funes_payloads')->value('byte_size'))->toBe(strlen('<html>first</html>'))
@@ -59,8 +70,49 @@ it('returns the original observation when acceptance is repeated', function (): 
         ->and($second->observation->id)->toBe($first->observation->id)
         ->and(DB::table('funes_observations')->count())->toBe(1)
         ->and(DB::table('funes_payloads')->count())->toBe(1)
-        ->and(DB::table('funes_discoveries')->count())->toBe(1);
+        ->and(DB::table('funes_discoveries')->count())->toBe(1)
+        ->and(DB::table('funes_observation_provenance')->count())->toBe(2);
 });
+
+it('does not duplicate an identical provenance assertion', function (): void {
+    $store = app(ObservationStore::class);
+
+    $store->accept(observationDraft());
+    $replayed = $store->accept(observationDraft());
+
+    expect($replayed->observation->provenance)->toHaveCount(1)
+        ->and(DB::table('funes_observation_provenance')->count())->toBe(1);
+});
+
+it('rejects incomplete producer provenance', function (): void {
+    new ObservationDraft(
+        sourceReference: 'website:example',
+        sourceName: 'Example website',
+        resourceReference: 'https://example.test/articles/one',
+        producerReference: '',
+        producerName: 'Aleph web connector',
+        observedAt: new DateTimeImmutable('2026-08-26T12:00:00+00:00'),
+        payload: 'body',
+    );
+})->throws(InvalidArgumentException::class);
+
+it('enforces producer provenance in storage', function (): void {
+    $store = app(ObservationStore::class);
+    $observation = $store->accept(observationDraft())->observation;
+    $stored = DB::table('funes_observation_provenance')->first();
+
+    DB::table('funes_observation_provenance')->insert([
+        'id' => (string) Str::ulid(),
+        'observation_id' => $observation->id,
+        'source_id' => $stored->source_id,
+        'resource_id' => $stored->resource_id,
+        'producer_name' => 'Missing identity',
+        'observed_at' => new DateTimeImmutable('2026-08-27T12:00:00+00:00'),
+        'recorded_at' => new DateTimeImmutable('2026-08-27T12:01:00+00:00'),
+        'transformation_lineage' => '[]',
+        'fingerprint' => hash('sha256', 'missing-producer-reference'),
+    ]);
+})->throws(QueryException::class);
 
 it('resolves a discovered resource back to its parent observation', function (): void {
     $store = app(ObservationStore::class);

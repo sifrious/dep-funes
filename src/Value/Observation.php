@@ -8,6 +8,9 @@ use DateTimeImmutable;
 
 final readonly class Observation
 {
+    /**
+     * @param  list<Provenance>  $provenance
+     */
     public function __construct(
         public string $id,
         public string $sourceReference,
@@ -20,5 +23,6 @@ final readonly class Observation
         public string $contentType,
         public mixed $metadata,
         public mixed $discoveries,
+        public array $provenance,
     ) {}
 }

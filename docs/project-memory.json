@@ -4,11 +4,14 @@
         "Observation acceptance, payload preservation, canonical resource creation, and discovery creation occur in one transaction.",
         "Raw payloads are content-addressed by SHA-256 and remain recoverable through observations.",
         "Extraction successes and failures are immutable records keyed by observation, extractor, and extractor version.",
-        "A canonical resource and payload hash identify one historical effect; a new payload hash creates a new observation."
-        ,"Observation acceptance returns an explicit first, unchanged, or changed disposition.",
+        "A canonical resource and payload hash identify one historical effect; a new payload hash creates a new observation.",
+        "Observation acceptance returns an explicit first, unchanged, or changed disposition.",
         "Discovery provenance is queryable from a child resource back to its parent resource and observation.",
         "Landing is the complete master application schema and source of truth for shared database vocabulary; Funes only appends prefixed history tables.",
-        "Funes exposes portable entity reference kinds for projects, identities, repositories, organizations, and domains."
+        "Funes exposes portable entity reference kinds for projects, identities, repositories, organizations, and domains.",
+        "Every accepted observation returns append-only provenance assertions containing a resolvable source locator, producer identity, occurrence time when known, observation time, recording time, and transformation lineage.",
+        "An exact retry reuses its provenance assertion; a later encounter with identical content appends provenance without duplicating the historical observation.",
+        "Acceptance-gateway replay resolves the accepted observation and its provenance."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -42,6 +45,10 @@
         {
             "decision": "Require entity references to combine a fixed kind with a namespaced opaque identifier.",
             "rationale": "Host database integers and display names cannot preserve identity across application boundaries."
+        },
+        {
+            "decision": "Store provenance assertions separately from observations.",
+            "rationale": "One historical effect may be encountered by multiple producers or at multiple times; preserving those paths must not duplicate or rewrite the observation."
         }
     ],
     "open_questions": [],
@@ -49,7 +56,10 @@
         "Observations and extraction results have no update operation.",
         "Acceptance must remain atomic and safe to retry.",
         "Storage vocabulary must remain independent of a particular website domain.",
-        "Entity references must not use host database integers or unqualified display names."
+        "Entity references must not use host database integers or unqualified display names.",
+        "Every new observation must be created in the same transaction as at least one provenance assertion.",
+        "Occurrence time cannot be later than observation time.",
+        "Producer references and source locators must be non-empty package-owned values."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -57,14 +67,18 @@
         "observation": "An immutable retrieval of a resource at an observed time.",
         "discovery": "A typed relationship from the observed parent resource to another canonical resource.",
         "extraction": "A versioned success or failure derived from one observation.",
-        "entity_reference": "A typed namespaced opaque identifier for a stable cross-application entity."
+        "entity_reference": "A typed namespaced opaque identifier for a stable cross-application entity.",
+        "source_locator": "A source reference, source name, and canonical resource reference sufficient for the owning integration to resolve the original material.",
+        "producer": "The stable identity and display name of the package or process that supplied an observation.",
+        "provenance_assertion": "An immutable source, producer, temporal, and transformation-lineage path by which Funes knows an observation."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
         "later": ["search projections", "object payload storage", "payload compression"]
     },
     "workflows": {
-        "accept_observation": ["resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "resolve discovered resources", "append discovery relationships", "commit"],
+        "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
+        "retrieve_observation": ["resolve observation", "recover original payload", "recover every provenance assertion in deterministic order", "return source locators, producers, temporal coordinates, and transformation lineage"],
         "record_extraction": ["verify observation", "append versioned outcome", "commit"]
     },
     "content_opportunities": [

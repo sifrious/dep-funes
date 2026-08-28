@@ -31,9 +31,9 @@ final readonly class AcceptanceResult
         return new self($key, AcceptanceOutcome::Accepted, 'observation', $acceptedId, $disposition, $observation, []);
     }
 
-    public static function replayed(string $key, string $acceptedType, string $acceptedId): self
+    public static function replayed(string $key, string $acceptedType, string $acceptedId, ?Observation $observation = null): self
     {
-        return new self($key, AcceptanceOutcome::Replayed, $acceptedType, $acceptedId, null, null, []);
+        return new self($key, AcceptanceOutcome::Replayed, $acceptedType, $acceptedId, null, $observation, []);
     }
 
     public static function inFlight(string $key): self

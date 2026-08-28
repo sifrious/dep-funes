@@ -18,6 +18,8 @@ function draft(string $resource = 'res-1', string $payload = 'body'): Observatio
         sourceReference: 'src-1',
         sourceName: 'Source One',
         resourceReference: $resource,
+        producerReference: 'aleph:test-provider',
+        producerName: 'Aleph test provider',
         observedAt: new DateTimeImmutable('2026-08-27T10:00:00+00:00'),
         payload: $payload,
     );
@@ -43,6 +45,7 @@ it('returns the same accepted id when the key is replayed', function (): void {
 
     expect($second->outcome)->toBe(AcceptanceOutcome::Replayed)
         ->and($second->acceptedId)->toBe($first->acceptedId)
+        ->and($second->observation?->provenance[0]->producer->reference)->toBe('aleph:test-provider')
         ->and(DB::table('funes_observations')->count())->toBe(1);
 });
 
@@ -134,6 +137,8 @@ it('reports observations accepted before the boundary as backlog', function (): 
         sourceReference: 'legacy:source/one',
         sourceName: 'Legacy',
         resourceReference: 'legacy:item/1',
+        producerReference: 'legacy:importer',
+        producerName: 'Legacy importer',
         observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
         payload: 'written before A34',
         contentType: 'text/plain',
@@ -155,6 +160,8 @@ it('bounds the backlog it hands back', function (): void {
             sourceReference: 'legacy:source/one',
             sourceName: 'Legacy',
             resourceReference: 'legacy:item/'.$index,
+            producerReference: 'legacy:importer',
+            producerName: 'Legacy importer',
             observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
             payload: 'row '.$index,
             contentType: 'text/plain',

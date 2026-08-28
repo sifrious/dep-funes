@@ -32,7 +32,10 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
                 return $this->resolveExisting($submission->idempotencyKey);
             }
 
-            $accepted = $this->observations->accept($submission->draft);
+            $draft = $submission->occurredAt === null
+                ? $submission->draft
+                : $submission->draft->withOccurredAt($submission->occurredAt);
+            $accepted = $this->observations->accept($draft);
             $now = new DateTimeImmutable;
 
             $this->connection->table('funes_idempotency_keys')
@@ -95,7 +98,12 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
             return AcceptanceResult::inFlight($key);
         }
 
-        return AcceptanceResult::replayed($key, (string) $row->accepted_type, (string) $row->accepted_id);
+        return AcceptanceResult::replayed(
+            $key,
+            (string) $row->accepted_type,
+            (string) $row->accepted_id,
+            $this->observations->get((string) $row->accepted_id),
+        );
     }
 
     private function emit(string $observationId, Submission $submission, DateTimeImmutable $now): void
