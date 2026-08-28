@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Sifrious\Funes\Acceptance\AcceptanceBacklog;
 use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\AcceptanceOutcome;
 use Sifrious\Funes\Acceptance\Submission;
+use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Value\ObservationDraft;
 
 uses(RefreshDatabase::class);
@@ -125,4 +127,40 @@ it('treats a reserved but unfinished key as in flight rather than accepted', fun
     expect($result->outcome)->toBe(AcceptanceOutcome::InFlight)
         ->and($result->outcome->isAuthoritative())->toBeFalse()
         ->and(DB::table('funes_observations')->count())->toBe(0);
+});
+
+it('reports observations accepted before the boundary as backlog', function (): void {
+    app(ObservationStore::class)->accept(new ObservationDraft(
+        sourceReference: 'legacy:source/one',
+        sourceName: 'Legacy',
+        resourceReference: 'legacy:item/1',
+        observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
+        payload: 'written before A34',
+        contentType: 'text/plain',
+    ));
+
+    expect(app(AcceptanceBacklog::class)->unkeyedCount())->toBe(1)
+        ->and(app(AcceptanceBacklog::class)->unkeyed())->toHaveCount(1);
+});
+
+it('drops an observation out of the backlog once a key vouches for it', function (): void {
+    gateway()->accept(new Submission('key-backlog', draft()));
+
+    expect(app(AcceptanceBacklog::class)->unkeyedCount())->toBe(0);
+});
+
+it('bounds the backlog it hands back', function (): void {
+    foreach (range(1, 5) as $index) {
+        app(ObservationStore::class)->accept(new ObservationDraft(
+            sourceReference: 'legacy:source/one',
+            sourceName: 'Legacy',
+            resourceReference: 'legacy:item/'.$index,
+            observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
+            payload: 'row '.$index,
+            contentType: 'text/plain',
+        ));
+    }
+
+    expect(app(AcceptanceBacklog::class)->unkeyed(2))->toHaveCount(2)
+        ->and(app(AcceptanceBacklog::class)->unkeyedCount())->toBe(5);
 });
