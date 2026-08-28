@@ -20,6 +20,7 @@ function identityObservation(string $payload = 'repository payload', string $obs
         resourceReference: 'https://api.github.test/repos/sifrious/funes',
         producerReference: 'aleph:github-connector',
         producerName: 'Aleph GitHub connector',
+        ingestionRunReference: 'aleph:github-run/'.$observedAt,
         observedAt: new DateTimeImmutable($observedAt),
         payload: $payload,
     );

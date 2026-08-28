@@ -13,10 +13,12 @@ use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\ExtractionResult;
+use Sifrious\Funes\Value\IngestionRun;
 use Sifrious\Funes\Value\Observation;
 use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
 use Sifrious\Funes\Value\Producer;
+use Sifrious\Funes\Value\ProducerContext;
 use Sifrious\Funes\Value\Provenance;
 use Sifrious\Funes\Value\SourceLocator;
 use stdClass;
@@ -158,6 +160,8 @@ final class SqlObservationStore implements ObservationStore
                 throw new ObservationConflict("Extraction [{$draft->extractor}:{$draft->version}] was already recorded with different content.");
             }
 
+            $this->storeExtractionProvenance((string) $row->id, $draft->producerContext, $now);
+
             return $this->hydrateExtraction($row);
         }, 3);
     }
@@ -223,6 +227,7 @@ final class SqlObservationStore implements ObservationStore
             $sourceId,
             $resourceId,
             $draft->producerReference,
+            $draft->ingestionRunReference,
             $draft->occurredAt?->format(DATE_ATOM),
             $draft->observedAt->format(DATE_ATOM),
             $draft->transformationLineage,
@@ -235,11 +240,27 @@ final class SqlObservationStore implements ObservationStore
             'resource_id' => $resourceId,
             'producer_reference' => $draft->producerReference,
             'producer_name' => $draft->producerName,
+            'ingestion_run_reference' => $draft->ingestionRunReference,
             'occurred_at' => $draft->occurredAt,
             'observed_at' => $draft->observedAt,
             'recorded_at' => $recordedAt,
             'transformation_lineage' => $lineage,
             'fingerprint' => $fingerprint,
+        ]);
+    }
+
+    private function storeExtractionProvenance(
+        string $extractionId,
+        ProducerContext $producerContext,
+        DateTimeImmutable $recordedAt,
+    ): void {
+        $this->connection->table('funes_extraction_provenance')->insertOrIgnore([
+            'id' => (string) Str::ulid(),
+            'extraction_id' => $extractionId,
+            'producer_reference' => $producerContext->producer->reference,
+            'producer_name' => $producerContext->producer->name,
+            'ingestion_run_reference' => $producerContext->ingestionRun->reference,
+            'recorded_at' => $recordedAt,
         ]);
     }
 
@@ -290,6 +311,7 @@ final class SqlObservationStore implements ObservationStore
                     (string) $item->resource_reference,
                 ),
                 new Producer((string) $item->producer_reference, (string) $item->producer_name),
+                new IngestionRun((string) $item->ingestion_run_reference),
                 $item->occurred_at === null ? null : new DateTimeImmutable((string) $item->occurred_at),
                 new DateTimeImmutable((string) $item->observed_at),
                 new DateTimeImmutable((string) $item->recorded_at),
@@ -319,11 +341,23 @@ final class SqlObservationStore implements ObservationStore
 
     private function hydrateExtraction(stdClass $row): ExtractionResult
     {
+        $producerContexts = array_values($this->connection->table('funes_extraction_provenance')
+            ->where('extraction_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): ProducerContext => new ProducerContext(
+                new Producer((string) $item->producer_reference, (string) $item->producer_name),
+                new IngestionRun((string) $item->ingestion_run_reference),
+            ))
+            ->all());
+
         return new ExtractionResult(
             (string) $row->id,
             (string) $row->observation_id,
             (string) $row->extractor,
             (string) $row->version,
+            $producerContexts,
             $row->result === null ? null : $this->decode((string) $row->result),
             $row->failure === null ? null : (string) $row->failure,
             new DateTimeImmutable((string) $row->recorded_at),

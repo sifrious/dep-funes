@@ -18,6 +18,7 @@ final readonly class ObservationDraft
         public string $resourceReference,
         public string $producerReference,
         public string $producerName,
+        public string $ingestionRunReference,
         public DateTimeImmutable $observedAt,
         public string $payload,
         public ?DateTimeImmutable $occurredAt = null,
@@ -28,6 +29,7 @@ final readonly class ObservationDraft
     ) {
         new SourceLocator($sourceReference, $sourceName, $resourceReference);
         new Producer($producerReference, $producerName);
+        new IngestionRun($ingestionRunReference);
 
         if ($occurredAt !== null && $occurredAt > $observedAt) {
             throw new InvalidArgumentException('Occurrence time cannot be later than observation time.');
@@ -58,6 +60,7 @@ final readonly class ObservationDraft
             $this->resourceReference,
             $this->producerReference,
             $this->producerName,
+            $this->ingestionRunReference,
             $this->observedAt,
             $this->payload,
             $occurredAt,

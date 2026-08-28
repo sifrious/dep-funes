@@ -11,8 +11,11 @@ use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\HistoricalRecordType;
+use Sifrious\Funes\Value\IngestionRun;
 use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
+use Sifrious\Funes\Value\Producer;
+use Sifrious\Funes\Value\ProducerContext;
 
 uses(RefreshDatabase::class);
 
@@ -26,6 +29,7 @@ function observationDraft(
         resourceReference: 'https://example.test/articles/one',
         producerReference: 'aleph:connector/web',
         producerName: 'Aleph web connector',
+        ingestionRunReference: 'aleph:run/2026-08-26T12:00:00Z',
         observedAt: new DateTimeImmutable($observedAt),
         payload: $payload,
         occurredAt: new DateTimeImmutable('2026-08-26T11:55:00+00:00'),
@@ -52,6 +56,7 @@ it('atomically accepts and reads a recoverable observation by source reference',
         ->and($found?->provenance)->toHaveCount(1)
         ->and($found?->provenance[0]->source->resourceReference)->toBe('https://example.test/articles/one')
         ->and($found?->provenance[0]->producer->reference)->toBe('aleph:connector/web')
+        ->and($found?->provenance[0]->ingestionRun->reference)->toBe('aleph:run/2026-08-26T12:00:00Z')
         ->and($found?->provenance[0]->occurredAt?->format(DATE_ATOM))->toBe('2026-08-26T11:55:00+00:00')
         ->and($found?->provenance[0]->transformationLineage)->toBe(['aleph:fetch/1'])
         ->and($found?->discoveries)->toHaveCount(1)
@@ -93,6 +98,20 @@ it('rejects incomplete producer provenance', function (): void {
         resourceReference: 'https://example.test/articles/one',
         producerReference: '',
         producerName: 'Aleph web connector',
+        ingestionRunReference: 'aleph:run/1',
+        observedAt: new DateTimeImmutable('2026-08-26T12:00:00+00:00'),
+        payload: 'body',
+    );
+})->throws(InvalidArgumentException::class);
+
+it('rejects missing ingestion-run provenance', function (): void {
+    new ObservationDraft(
+        sourceReference: 'website:example',
+        sourceName: 'Example website',
+        resourceReference: 'https://example.test/articles/one',
+        producerReference: 'aleph:connector/web',
+        producerName: 'Aleph web connector',
+        ingestionRunReference: '',
         observedAt: new DateTimeImmutable('2026-08-26T12:00:00+00:00'),
         payload: 'body',
     );
@@ -149,12 +168,14 @@ it('records versioned extraction successes and failures without changing observa
         $observation->id,
         'article',
         '1',
+        new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/1')),
         ['title' => 'First'],
     ));
     $failure = $store->recordExtraction(new ExtractionDraft(
         $observation->id,
         'article',
         '2',
+        new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/1')),
         failure: 'Unsupported document',
     ));
 
@@ -163,6 +184,8 @@ it('records versioned extraction successes and failures without changing observa
         ->and($success->type())->toBe(HistoricalRecordType::Derived)
         ->and($success->observationId)->toBe($observation->id)
         ->and($success->process())->toEqual(new DerivationProcess('article', '1'))
+        ->and($success->producerContexts[0]->producer->reference)->toBe('kilgore:extractor/article')
+        ->and($success->producerContexts[0]->ingestionRun->reference)->toBe('kilgore:run/1')
         ->and($success->result)->toBe(['title' => 'First'])
         ->and($failure->succeeded())->toBeFalse()
         ->and($failure->failure)->toBe('Unsupported document')
@@ -176,6 +199,7 @@ it('prevents a derived result from entering observation acceptance', function ()
         $observation->id,
         'summary',
         '1',
+        new ProducerContext(new Producer('kilgore:extractor/summary', 'Kilgore summary extractor'), new IngestionRun('kilgore:run/2')),
         ['text' => 'A later interpretation'],
     ));
 
@@ -187,6 +211,7 @@ it('rejects an unnamed derivation process', function (): void {
         '01K00000000000000000000000',
         '',
         '1',
+        new ProducerContext(new Producer('kilgore:extractor/summary', 'Kilgore summary extractor'), new IngestionRun('kilgore:run/2')),
         ['text' => 'A later interpretation'],
     );
 })->throws(InvalidArgumentException::class);
@@ -194,7 +219,8 @@ it('rejects an unnamed derivation process', function (): void {
 it('makes repeated extraction recording idempotent and rejects conflicting reuse', function (): void {
     $store = app(ObservationStore::class);
     $observation = $store->accept(observationDraft())->observation;
-    $draft = new ExtractionDraft($observation->id, 'article', '1', ['title' => 'First']);
+    $context = new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/1'));
+    $draft = new ExtractionDraft($observation->id, 'article', '1', $context, ['title' => 'First']);
 
     $first = $store->recordExtraction($draft);
     $second = $store->recordExtraction($draft);
@@ -204,6 +230,32 @@ it('makes repeated extraction recording idempotent and rejects conflicting reuse
             $observation->id,
             'article',
             '1',
+            $context,
             ['title' => 'Changed'],
         )))->toThrow(ObservationConflict::class);
+});
+
+it('appends producer runs to an unchanged derived result', function (): void {
+    $store = app(ObservationStore::class);
+    $observation = $store->accept(observationDraft())->observation;
+
+    $first = $store->recordExtraction(new ExtractionDraft(
+        $observation->id,
+        'article',
+        '1',
+        new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/1')),
+        ['title' => 'First'],
+    ));
+    $second = $store->recordExtraction(new ExtractionDraft(
+        $observation->id,
+        'article',
+        '1',
+        new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/2')),
+        ['title' => 'First'],
+    ));
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->producerContexts)->toHaveCount(2)
+        ->and(DB::table('funes_extractions')->count())->toBe(1)
+        ->and(DB::table('funes_extraction_provenance')->count())->toBe(2);
 });

@@ -27,3 +27,11 @@ Observations always report the observed historical type. Extraction results alwa
 derived type and retain an evidence observation plus a named, versioned derivation process. Funes
 does not expose a generic record-acceptance method because it would allow interpretations to enter
 the source-observation path.
+
+## D-005 — Producer context combines identity with an ingestion run
+
+Every new observed or derived record requires a stable producer identity and ingestion-run
+reference. Repeated runs that produce the same historical effect append producer context without
+duplicating that effect. Pre-contract rows receive explicit `funes:legacy-*` surrogate run
+references during migration; those values preserve traceability without claiming a recovered
+external job identity.

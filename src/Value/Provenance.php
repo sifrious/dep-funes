@@ -16,6 +16,7 @@ final readonly class Provenance
         public string $observationId,
         public SourceLocator $source,
         public Producer $producer,
+        public IngestionRun $ingestionRun,
         public ?DateTimeImmutable $occurredAt,
         public DateTimeImmutable $observedAt,
         public DateTimeImmutable $recordedAt,

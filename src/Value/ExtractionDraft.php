@@ -12,6 +12,7 @@ final readonly class ExtractionDraft
         public string $observationId,
         public string $extractor,
         public string $version,
+        public ProducerContext $producerContext,
         public mixed $result = null,
         public ?string $failure = null,
     ) {

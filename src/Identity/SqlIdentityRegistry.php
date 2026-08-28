@@ -12,6 +12,7 @@ use Sifrious\Funes\Value\EntityKind;
 use Sifrious\Funes\Value\EntityReference;
 use Sifrious\Funes\Value\ExternalIdentity;
 use Sifrious\Funes\Value\ExternalIdentityClaim;
+use Sifrious\Funes\Value\IngestionRun;
 use Sifrious\Funes\Value\Producer;
 use Sifrious\Funes\Value\Provenance;
 use Sifrious\Funes\Value\SourceLocator;
@@ -190,6 +191,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
                     (string) $item->resource_reference,
                 ),
                 new Producer((string) $item->producer_reference, (string) $item->producer_name),
+                new IngestionRun((string) $item->ingestion_run_reference),
                 $item->occurred_at === null ? null : new DateTimeImmutable((string) $item->occurred_at),
                 new DateTimeImmutable((string) $item->observed_at),
                 new DateTimeImmutable((string) $item->recorded_at),

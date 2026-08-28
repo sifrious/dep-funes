@@ -8,11 +8,15 @@ use DateTimeImmutable;
 
 final readonly class ExtractionResult
 {
+    /**
+     * @param  list<ProducerContext>  $producerContexts
+     */
     public function __construct(
         public string $id,
         public string $observationId,
         public string $extractor,
         public string $version,
+        public array $producerContexts,
         public mixed $result,
         public ?string $failure,
         public DateTimeImmutable $recordedAt,

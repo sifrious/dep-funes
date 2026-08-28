@@ -20,6 +20,7 @@ function draft(string $resource = 'res-1', string $payload = 'body'): Observatio
         resourceReference: $resource,
         producerReference: 'aleph:test-provider',
         producerName: 'Aleph test provider',
+        ingestionRunReference: 'aleph:test-run/1',
         observedAt: new DateTimeImmutable('2026-08-27T10:00:00+00:00'),
         payload: $payload,
     );
@@ -139,6 +140,7 @@ it('reports observations accepted before the boundary as backlog', function (): 
         resourceReference: 'legacy:item/1',
         producerReference: 'legacy:importer',
         producerName: 'Legacy importer',
+        ingestionRunReference: 'legacy:run/1',
         observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
         payload: 'written before A34',
         contentType: 'text/plain',
@@ -162,6 +164,7 @@ it('bounds the backlog it hands back', function (): void {
             resourceReference: 'legacy:item/'.$index,
             producerReference: 'legacy:importer',
             producerName: 'Legacy importer',
+            ingestionRunReference: 'legacy:run/'.$index,
             observedAt: new DateTimeImmutable('2026-08-20T10:00:00+00:00'),
             payload: 'row '.$index,
             contentType: 'text/plain',
