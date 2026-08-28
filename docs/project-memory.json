@@ -7,7 +7,8 @@
         "A canonical resource and payload hash identify one historical effect; a new payload hash creates a new observation."
         ,"Observation acceptance returns an explicit first, unchanged, or changed disposition.",
         "Discovery provenance is queryable from a child resource back to its parent resource and observation.",
-        "Landing is the complete master application schema and source of truth for shared database vocabulary; Funes only appends prefixed history tables."
+        "Landing is the complete master application schema and source of truth for shared database vocabulary; Funes only appends prefixed history tables.",
+        "Funes exposes portable entity reference kinds for projects, identities, repositories, organizations, and domains."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -37,20 +38,26 @@
         {
             "decision": "Use landing's names for database concepts shared with Funes.",
             "rationale": "The master schema must retain every landing table and column while Funes adds only new prefixed tables; payload and observation fields therefore use byte_size, content_type, and ingested_at."
+        },
+        {
+            "decision": "Require entity references to combine a fixed kind with a namespaced opaque identifier.",
+            "rationale": "Host database integers and display names cannot preserve identity across application boundaries."
         }
     ],
     "open_questions": [],
     "constraints": [
         "Observations and extraction results have no update operation.",
         "Acceptance must remain atomic and safe to retry.",
-        "Storage vocabulary must remain independent of a particular website domain."
+        "Storage vocabulary must remain independent of a particular website domain.",
+        "Entity references must not use host database integers or unqualified display names."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
         "resource": "A canonical address within a source.",
         "observation": "An immutable retrieval of a resource at an observed time.",
         "discovery": "A typed relationship from the observed parent resource to another canonical resource.",
-        "extraction": "A versioned success or failure derived from one observation."
+        "extraction": "A versioned success or failure derived from one observation.",
+        "entity_reference": "A typed namespaced opaque identifier for a stable cross-application entity."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],

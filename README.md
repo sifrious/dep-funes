@@ -69,6 +69,8 @@ History is more useful as a connected record than as a collection of isolated do
 
 Funes models stable entities separately from the external identities assigned by individual systems. This allows records from different sources to refer to the same project, repository, person, agent, conversation, file, or task without adopting one provider's identifier as the universal identity.
 
+Portable callers use `EntityReference` with a fixed `EntityKind` and a namespaced opaque identifier such as `github:R_kgDOExample`. Numeric host database IDs and unqualified display names are rejected at the boundary.
+
 Typed relationships can preserve facts such as:
 
 - one message replying to another;
