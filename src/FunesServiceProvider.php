@@ -16,6 +16,8 @@ use Sifrious\Funes\Identity\IdentityRegistry;
 use Sifrious\Funes\Identity\SqlIdentityRegistry;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Persistence\SqlObservationStore;
+use Sifrious\Funes\Text\SqlTextProjection;
+use Sifrious\Funes\Text\TextProjection;
 
 class FunesServiceProvider extends ServiceProvider
 {
@@ -38,6 +40,10 @@ class FunesServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(IdentityRegistry::class, fn ($app): IdentityRegistry => new SqlIdentityRegistry(
+            $this->connection($app),
+        ));
+
+        $this->app->singleton(TextProjection::class, fn ($app): TextProjection => new SqlTextProjection(
             $this->connection($app),
         ));
     }

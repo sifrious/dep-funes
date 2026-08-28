@@ -23,6 +23,8 @@ use Sifrious\Funes\Value\Producer;
 use Sifrious\Funes\Value\ProducerContext;
 use Sifrious\Funes\Value\Provenance;
 use Sifrious\Funes\Value\SourceLocator;
+use Sifrious\Funes\Value\TextAssertion;
+use Sifrious\Funes\Value\TextDraft;
 use stdClass;
 
 final class SqlObservationStore implements ObservationStore
@@ -66,6 +68,7 @@ final class SqlObservationStore implements ObservationStore
             $row = $this->observationRow($resourceId, $payloadHash);
             $provenance = $this->storeProvenance((string) $row->id, $sourceId, $resourceId, $draft, $now);
             $this->storeMetadata((string) $row->id, (string) $provenance->id, $draft->metadata, $now);
+            $this->storeText((string) $row->id, (string) $provenance->id, $draft->texts, $now);
             $this->storeDiscoveries((string) $row->id, $sourceId, $resourceId, $draft->discoveries, $now);
 
             return new AcceptedObservation(
@@ -293,6 +296,41 @@ final class SqlObservationStore implements ObservationStore
         }
     }
 
+    /**
+     * @param  list<TextDraft>  $texts
+     */
+    private function storeText(
+        string $observationId,
+        string $provenanceId,
+        array $texts,
+        DateTimeImmutable $recordedAt,
+    ): void {
+        foreach ($texts as $text) {
+            $textHash = hash('sha256', $text->text);
+            $fingerprint = hash('sha256', $this->json([
+                $observationId,
+                $provenanceId,
+                $text->kind,
+                $text->contentType,
+                $text->language,
+                $textHash,
+            ]));
+
+            $this->connection->table('funes_observation_text')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'observation_id' => $observationId,
+                'provenance_id' => $provenanceId,
+                'kind' => $text->kind,
+                'content_type' => $text->contentType,
+                'language' => $text->language,
+                'text' => $text->text,
+                'text_hash' => $textHash,
+                'fingerprint' => $fingerprint,
+                'recorded_at' => $recordedAt,
+            ]);
+        }
+    }
+
     private function storeExtractionProvenance(
         string $extractionId,
         ProducerContext $producerContext,
@@ -327,6 +365,11 @@ final class SqlObservationStore implements ObservationStore
         $source = $this->connection->table('funes_sources')->where('id', $row->source_id)->first();
         $resource = $this->connection->table('funes_resources')->where('id', $row->resource_id)->first();
         $payload = $this->connection->table('funes_payloads')->where('hash', $row->payload_hash)->first();
+
+        if (! $source instanceof stdClass || ! $resource instanceof stdClass || ! $payload instanceof stdClass) {
+            throw new ObservationConflict('The accepted observation is incomplete.');
+        }
+
         $discoveries = $this->connection->table('funes_discoveries as discoveries')
             ->join('funes_resources as resources', 'resources.id', '=', 'discoveries.resource_id')
             ->where('discoveries.observation_id', $row->id)
@@ -388,9 +431,36 @@ final class SqlObservationStore implements ObservationStore
                 new DateTimeImmutable((string) $row->ingested_at),
             ));
         }
+        $texts = array_values($this->connection->table('funes_observation_text')
+            ->where('observation_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): TextAssertion => new TextAssertion(
+                (string) $item->id,
+                (string) $item->observation_id,
+                (string) $item->provenance_id,
+                (string) $item->kind,
+                (string) $item->content_type,
+                (string) $item->text,
+                (string) $item->text_hash,
+                $item->language === null ? null : (string) $item->language,
+                new DateTimeImmutable((string) $item->recorded_at),
+            ))
+            ->all());
 
-        if (! $source instanceof stdClass || ! $resource instanceof stdClass || ! $payload instanceof stdClass) {
-            throw new ObservationConflict('The accepted observation is incomplete.');
+        if (str_starts_with((string) $row->content_type, 'text/') && (string) $payload->contents !== '') {
+            array_unshift($texts, new TextAssertion(
+                'funes:source-payload/'.$row->id,
+                (string) $row->id,
+                $provenance[0]->id ?? null,
+                'funes:source-payload',
+                (string) $row->content_type,
+                (string) $payload->contents,
+                (string) $row->payload_hash,
+                null,
+                new DateTimeImmutable((string) $row->ingested_at),
+            ));
         }
 
         return new Observation(
@@ -404,6 +474,7 @@ final class SqlObservationStore implements ObservationStore
             (string) $row->payload_hash,
             (string) $row->content_type,
             $metadata,
+            $texts,
             $discoveries,
             $provenance,
         );

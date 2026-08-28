@@ -15,6 +15,11 @@ final readonly class ObservationDraft
     public array $metadata;
 
     /**
+     * @var list<TextDraft>
+     */
+    public array $texts;
+
+    /**
      * @param  list<string>  $transformationLineage
      */
     public function __construct(
@@ -30,6 +35,7 @@ final readonly class ObservationDraft
         public array $transformationLineage = [],
         public string $contentType = 'application/octet-stream',
         mixed $metadata = [],
+        mixed $texts = [],
         public mixed $discoveries = [],
     ) {
         new SourceLocator($sourceReference, $sourceName, $resourceReference);
@@ -40,8 +46,8 @@ final readonly class ObservationDraft
             throw new InvalidArgumentException('Occurrence time cannot be later than observation time.');
         }
 
-        if (! is_array($metadata) || ! is_array($discoveries)) {
-            throw new InvalidArgumentException('Metadata and discoveries must be arrays.');
+        if (! is_array($metadata) || ! is_array($texts) || ! is_array($discoveries)) {
+            throw new InvalidArgumentException('Metadata, texts, and discoveries must be arrays.');
         }
 
         $metadataItems = [];
@@ -55,6 +61,18 @@ final readonly class ObservationDraft
         }
 
         $this->metadata = $metadataItems;
+
+        $textItems = [];
+
+        foreach ($texts as $text) {
+            if (! $text instanceof TextDraft) {
+                throw new InvalidArgumentException('Texts must contain only TextDraft values.');
+            }
+
+            $textItems[] = $text;
+        }
+
+        $this->texts = $textItems;
 
         foreach ($discoveries as $discovery) {
             if (! $discovery instanceof Discovery) {
@@ -84,6 +102,7 @@ final readonly class ObservationDraft
             $this->transformationLineage,
             $this->contentType,
             $this->metadata,
+            $this->texts,
             $this->discoveries,
         );
     }

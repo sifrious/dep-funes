@@ -10,6 +10,7 @@ final readonly class Observation
 {
     /**
      * @param  list<MetadataAssertion>  $metadata
+     * @param  list<TextAssertion>  $texts
      * @param  list<Provenance>  $provenance
      */
     public function __construct(
@@ -23,6 +24,7 @@ final readonly class Observation
         public string $payloadHash,
         public string $contentType,
         public array $metadata,
+        public array $texts,
         public mixed $discoveries,
         public array $provenance,
     ) {}
@@ -41,6 +43,17 @@ final readonly class Observation
             $this->metadata,
             fn (MetadataAssertion $metadata): bool => $metadata->namespace === $namespace
                 && ($schemaVersion === null || $metadata->schemaVersion === $schemaVersion),
+        ));
+    }
+
+    /**
+     * @return list<TextAssertion>
+     */
+    public function text(string $kind): array
+    {
+        return array_values(array_filter(
+            $this->texts,
+            fn (TextAssertion $text): bool => $text->kind === $kind,
         ));
     }
 }

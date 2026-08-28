@@ -42,3 +42,10 @@ Metadata enters as a namespaced, schema-versioned assertion linked to observatio
 Changing metadata does not create or mutate an observation. Exact assertion retries deduplicate;
 new versions append. Pre-contract JSON is projected as `funes:legacy` during retrieval instead of
 rewriting the original row.
+
+## D-007 — Historical text is authoritative; its projection is disposable
+
+Namespaced text assertions append beside the observation and link to accepting provenance. Textual
+raw payloads remain available as source-payload assertions. A separate projection can be deleted
+and rebuilt entirely from those authoritative records. Search ranking, tokenization, and engine
+selection are not part of this seam.

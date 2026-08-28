@@ -23,7 +23,10 @@
         "A later producer run yielding the same derived result appends provenance without duplicating the result.",
         "Structured observation metadata is preserved as append-only namespaced and schema-versioned assertions linked to provenance.",
         "Metadata changes append assertions without changing observation identity, while exact assertion retries deduplicate.",
-        "Pre-contract observation JSON is returned under the explicit funes:legacy metadata namespace without rewriting stored history."
+        "Pre-contract observation JSON is returned under the explicit funes:legacy metadata namespace without rewriting stored history.",
+        "Historical text is preserved as immutable namespaced assertions linked to observation provenance.",
+        "Textual raw payloads are exposed as funes:source-payload assertions whose content identity is the payload hash.",
+        "The text projection is disposable and rebuilds completely from authoritative observations, payloads, and text assertions."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -89,6 +92,14 @@
         {
             "decision": "Project pre-contract JSON as funes:legacy during retrieval.",
             "rationale": "Read compatibility can preserve original bytes and identify missing historical schema information without a destructive rewrite."
+        },
+        {
+            "decision": "Keep historical text authoritative and its projection disposable.",
+            "rationale": "Text must retain immutable source identity and provenance, while display and future search consumers need a rebuildable document seam rather than ownership of history."
+        },
+        {
+            "decision": "Defer full-text query behavior and search-engine selection.",
+            "rationale": "Stage 1 requires recoverable text and a rebuildable projection seam; ranking, tokenization, and search infrastructure belong to the later index and query stage."
         }
     ],
     "open_questions": [],
@@ -107,7 +118,9 @@
         "New observed and derived records require a non-empty ingestion-run reference.",
         "Legacy surrogate run references must remain visibly namespaced under funes:legacy and must not be presented as recovered external job identities.",
         "New structured metadata requires a namespaced identifier, non-empty schema version, JSON-encodable attributes, and provenance linkage.",
-        "Metadata is excluded from observation identity and has no update or delete operation."
+        "Metadata is excluded from observation identity and has no update or delete operation.",
+        "Historical text requires a namespaced kind, content type, non-empty content, optional valid language, and provenance linkage.",
+        "The text projection is never authoritative and must be completely rebuildable without provider access."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -126,7 +139,9 @@
         "derivation_process": "The non-empty process name and version that produced a derived result.",
         "ingestion_run": "A stable host-supplied reference for one connector, process, agent, or ingestion-job execution.",
         "producer_context": "The producer identity and ingestion-run reference through which Funes received or derived a record.",
-        "metadata_assertion": "An immutable namespaced, schema-versioned attribute document linked to the provenance that supplied it."
+        "metadata_assertion": "An immutable namespaced, schema-versioned attribute document linked to the provenance that supplied it.",
+        "text_assertion": "Immutable namespaced historical text linked to an observation and its accepting provenance.",
+        "text_projection": "A disposable adapter-ready copy of authoritative source payload text and text assertions."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -135,6 +150,8 @@
     "workflows": {
         "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
         "record_metadata": ["validate namespace, schema version, and JSON attributes", "resolve the observation and accepting provenance", "append or reuse the metadata assertion", "return all assertions in deterministic order"],
+        "record_text": ["validate kind, content type, content, and language", "resolve the observation and accepting provenance", "append or reuse the text assertion", "return all source and attached text in deterministic order"],
+        "rebuild_text_projection": ["delete disposable projection rows", "copy authoritative attached text", "copy authoritative textual source payloads", "return adapter-ready documents with observation and provenance references"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],
