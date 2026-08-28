@@ -8,6 +8,7 @@ use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\AcceptanceOutcome;
 use Sifrious\Funes\Acceptance\Submission;
 use Sifrious\Funes\Persistence\ObservationStore;
+use Sifrious\Funes\Value\MetadataDraft;
 use Sifrious\Funes\Value\ObservationDraft;
 
 uses(RefreshDatabase::class);
@@ -23,6 +24,7 @@ function draft(string $resource = 'res-1', string $payload = 'body'): Observatio
         ingestionRunReference: 'aleph:test-run/1',
         observedAt: new DateTimeImmutable('2026-08-27T10:00:00+00:00'),
         payload: $payload,
+        metadata: [new MetadataDraft('test:submission', '1', ['resource' => $resource])],
     );
 }
 

@@ -12,6 +12,7 @@ use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\HistoricalRecordType;
 use Sifrious\Funes\Value\IngestionRun;
+use Sifrious\Funes\Value\MetadataDraft;
 use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
 use Sifrious\Funes\Value\Producer;
@@ -22,6 +23,7 @@ uses(RefreshDatabase::class);
 function observationDraft(
     string $payload = '<html>first</html>',
     string $observedAt = '2026-08-26T12:00:00+00:00',
+    ?array $metadata = null,
 ): ObservationDraft {
     return new ObservationDraft(
         sourceReference: 'website:example',
@@ -35,7 +37,7 @@ function observationDraft(
         occurredAt: new DateTimeImmutable('2026-08-26T11:55:00+00:00'),
         transformationLineage: ['aleph:fetch/1'],
         contentType: 'text/html',
-        metadata: ['status' => 200],
+        metadata: $metadata ?? [new MetadataDraft('http:response', '1', ['status' => 200])],
         discoveries: [new Discovery('https://example.test/articles/two', 'link')],
     );
 }
@@ -59,6 +61,9 @@ it('atomically accepts and reads a recoverable observation by source reference',
         ->and($found?->provenance[0]->ingestionRun->reference)->toBe('aleph:run/2026-08-26T12:00:00Z')
         ->and($found?->provenance[0]->occurredAt?->format(DATE_ATOM))->toBe('2026-08-26T11:55:00+00:00')
         ->and($found?->provenance[0]->transformationLineage)->toBe(['aleph:fetch/1'])
+        ->and($found?->metadata('http:response'))->toHaveCount(1)
+        ->and($found?->metadata('http:response', '1')[0]->attributes)->toBe(['status' => 200])
+        ->and($found?->metadata[0]->provenanceId)->toBe($found?->provenance[0]->id)
         ->and($found?->discoveries)->toHaveCount(1)
         ->and($found?->discoveries[0]->canonicalReference)->toBe('https://example.test/articles/two')
         ->and(DB::table('funes_payloads')->value('byte_size'))->toBe(strlen('<html>first</html>'))
@@ -88,7 +93,43 @@ it('does not duplicate an identical provenance assertion', function (): void {
     $replayed = $store->accept(observationDraft());
 
     expect($replayed->observation->provenance)->toHaveCount(1)
-        ->and(DB::table('funes_observation_provenance')->count())->toBe(1);
+        ->and(DB::table('funes_observation_provenance')->count())->toBe(1)
+        ->and(DB::table('funes_observation_metadata')->count())->toBe(1);
+});
+
+it('appends namespaced metadata without changing observation identity', function (): void {
+    $store = app(ObservationStore::class);
+    $first = $store->accept(observationDraft())->observation;
+    $second = $store->accept(observationDraft(
+        metadata: [new MetadataDraft('http:response', '2', ['status' => 200, 'cache' => 'hit'])],
+    ))->observation;
+
+    expect($second->id)->toBe($first->id)
+        ->and($second->metadata('http:response'))->toHaveCount(2)
+        ->and($second->metadata('http:response', '1'))->toHaveCount(1)
+        ->and($second->metadata('http:response', '2')[0]->attributes['cache'])->toBe('hit')
+        ->and(DB::table('funes_observations')->count())->toBe(1)
+        ->and(DB::table('funes_observation_metadata')->count())->toBe(2);
+});
+
+it('rejects unnamespaced metadata', function (): void {
+    new MetadataDraft('response', '1', ['status' => 200]);
+})->throws(InvalidArgumentException::class);
+
+it('returns pre-contract metadata as an explicit legacy assertion', function (): void {
+    $store = app(ObservationStore::class);
+    $observation = $store->accept(observationDraft(metadata: []))->observation;
+
+    DB::table('funes_observations')
+        ->where('id', $observation->id)
+        ->update(['metadata' => json_encode(['status' => 200], JSON_THROW_ON_ERROR)]);
+
+    $legacy = $store->get($observation->id)?->metadata('funes:legacy');
+
+    expect($legacy)->toHaveCount(1)
+        ->and($legacy[0]->schemaVersion)->toBe('1')
+        ->and($legacy[0]->attributes)->toBe(['status' => 200])
+        ->and($legacy[0]->provenanceId)->toBe($observation->provenance[0]->id);
 });
 
 it('rejects incomplete producer provenance', function (): void {

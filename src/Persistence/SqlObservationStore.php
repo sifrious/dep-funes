@@ -14,6 +14,8 @@ use Sifrious\Funes\Value\DiscoveryProvenance;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\ExtractionResult;
 use Sifrious\Funes\Value\IngestionRun;
+use Sifrious\Funes\Value\MetadataAssertion;
+use Sifrious\Funes\Value\MetadataDraft;
 use Sifrious\Funes\Value\Observation;
 use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
@@ -38,7 +40,6 @@ final class SqlObservationStore implements ObservationStore
                 ->orderByDesc('id')
                 ->first();
             $payloadHash = hash('sha256', $draft->payload);
-            $metadata = $this->json($draft->metadata);
             $fingerprint = hash('sha256', $sourceId.$resourceId.$payloadHash);
             $now = new DateTimeImmutable;
 
@@ -57,13 +58,14 @@ final class SqlObservationStore implements ObservationStore
                 'payload_hash' => $payloadHash,
                 'content_type' => $draft->contentType,
                 'fingerprint' => $fingerprint,
-                'metadata' => $metadata,
+                'metadata' => '[]',
                 'observed_at' => $draft->observedAt,
                 'ingested_at' => $now,
             ]);
 
             $row = $this->observationRow($resourceId, $payloadHash);
-            $this->storeProvenance((string) $row->id, $sourceId, $resourceId, $draft, $now);
+            $provenance = $this->storeProvenance((string) $row->id, $sourceId, $resourceId, $draft, $now);
+            $this->storeMetadata((string) $row->id, (string) $provenance->id, $draft->metadata, $now);
             $this->storeDiscoveries((string) $row->id, $sourceId, $resourceId, $draft->discoveries, $now);
 
             return new AcceptedObservation(
@@ -220,7 +222,7 @@ final class SqlObservationStore implements ObservationStore
         string $resourceId,
         ObservationDraft $draft,
         DateTimeImmutable $recordedAt,
-    ): void {
+    ): stdClass {
         $lineage = $this->json($draft->transformationLineage);
         $fingerprint = hash('sha256', $this->json([
             $observationId,
@@ -247,6 +249,48 @@ final class SqlObservationStore implements ObservationStore
             'transformation_lineage' => $lineage,
             'fingerprint' => $fingerprint,
         ]);
+
+        $provenance = $this->connection->table('funes_observation_provenance')
+            ->where('fingerprint', $fingerprint)
+            ->first();
+
+        if (! $provenance instanceof stdClass) {
+            throw new ObservationConflict('The observation provenance could not be accepted.');
+        }
+
+        return $provenance;
+    }
+
+    /**
+     * @param  list<MetadataDraft>  $metadata
+     */
+    private function storeMetadata(
+        string $observationId,
+        string $provenanceId,
+        array $metadata,
+        DateTimeImmutable $recordedAt,
+    ): void {
+        foreach ($metadata as $item) {
+            $attributes = $this->json($item->attributes);
+            $fingerprint = hash('sha256', $this->json([
+                $observationId,
+                $provenanceId,
+                $item->namespace,
+                $item->schemaVersion,
+                $item->attributes,
+            ]));
+
+            $this->connection->table('funes_observation_metadata')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'observation_id' => $observationId,
+                'provenance_id' => $provenanceId,
+                'namespace' => $item->namespace,
+                'schema_version' => $item->schemaVersion,
+                'attributes' => $attributes,
+                'fingerprint' => $fingerprint,
+                'recorded_at' => $recordedAt,
+            ]);
+        }
     }
 
     private function storeExtractionProvenance(
@@ -318,6 +362,32 @@ final class SqlObservationStore implements ObservationStore
                 $this->decode((string) $item->transformation_lineage),
             ))
             ->all());
+        $metadata = array_values($this->connection->table('funes_observation_metadata')
+            ->where('observation_id', $row->id)
+            ->orderBy('recorded_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (stdClass $item): MetadataAssertion => new MetadataAssertion(
+                (string) $item->id,
+                (string) $item->namespace,
+                (string) $item->schema_version,
+                $this->decode((string) $item->attributes),
+                (string) $item->provenance_id,
+                new DateTimeImmutable((string) $item->recorded_at),
+            ))
+            ->all());
+        $legacyMetadata = $this->decode((string) $row->metadata);
+
+        if ($legacyMetadata !== []) {
+            array_unshift($metadata, new MetadataAssertion(
+                'funes:legacy-metadata/'.$row->id,
+                'funes:legacy',
+                '1',
+                $legacyMetadata,
+                $provenance[0]->id ?? null,
+                new DateTimeImmutable((string) $row->ingested_at),
+            ));
+        }
 
         if (! $source instanceof stdClass || ! $resource instanceof stdClass || ! $payload instanceof stdClass) {
             throw new ObservationConflict('The accepted observation is incomplete.');
@@ -333,7 +403,7 @@ final class SqlObservationStore implements ObservationStore
             (string) $payload->contents,
             (string) $row->payload_hash,
             (string) $row->content_type,
-            $this->decode((string) $row->metadata),
+            $metadata,
             $discoveries,
             $provenance,
         );

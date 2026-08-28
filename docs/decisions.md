@@ -35,3 +35,10 @@ reference. Repeated runs that produce the same historical effect append producer
 duplicating that effect. Pre-contract rows receive explicit `funes:legacy-*` surrogate run
 references during migration; those values preserve traceability without claiming a recovered
 external job identity.
+
+## D-006 — Structured metadata is append-only and versioned outside observation identity
+
+Metadata enters as a namespaced, schema-versioned assertion linked to observation provenance.
+Changing metadata does not create or mutate an observation. Exact assertion retries deduplicate;
+new versions append. Pre-contract JSON is projected as `funes:legacy` during retrieval instead of
+rewriting the original row.

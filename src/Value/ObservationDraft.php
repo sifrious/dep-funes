@@ -10,6 +10,11 @@ use InvalidArgumentException;
 final readonly class ObservationDraft
 {
     /**
+     * @var list<MetadataDraft>
+     */
+    public array $metadata;
+
+    /**
      * @param  list<string>  $transformationLineage
      */
     public function __construct(
@@ -24,7 +29,7 @@ final readonly class ObservationDraft
         public ?DateTimeImmutable $occurredAt = null,
         public array $transformationLineage = [],
         public string $contentType = 'application/octet-stream',
-        public mixed $metadata = [],
+        mixed $metadata = [],
         public mixed $discoveries = [],
     ) {
         new SourceLocator($sourceReference, $sourceName, $resourceReference);
@@ -38,6 +43,18 @@ final readonly class ObservationDraft
         if (! is_array($metadata) || ! is_array($discoveries)) {
             throw new InvalidArgumentException('Metadata and discoveries must be arrays.');
         }
+
+        $metadataItems = [];
+
+        foreach ($metadata as $item) {
+            if (! $item instanceof MetadataDraft) {
+                throw new InvalidArgumentException('Metadata must contain only MetadataDraft values.');
+            }
+
+            $metadataItems[] = $item;
+        }
+
+        $this->metadata = $metadataItems;
 
         foreach ($discoveries as $discovery) {
             if (! $discovery instanceof Discovery) {

@@ -20,7 +20,10 @@
         "The observation acceptance seam rejects derived results by concrete type.",
         "Every new observation provenance assertion requires a stable ingestion-run reference alongside producer identity.",
         "Every new derived record requires producer identity and ingestion-run context, and retrieval returns every known context.",
-        "A later producer run yielding the same derived result appends provenance without duplicating the result."
+        "A later producer run yielding the same derived result appends provenance without duplicating the result.",
+        "Structured observation metadata is preserved as append-only namespaced and schema-versioned assertions linked to provenance.",
+        "Metadata changes append assertions without changing observation identity, while exact assertion retries deduplicate.",
+        "Pre-contract observation JSON is returned under the explicit funes:legacy metadata namespace without rewriting stored history."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -78,6 +81,14 @@
         {
             "decision": "Backfill pre-contract rows with explicit Funes legacy-run surrogates.",
             "rationale": "A deterministic local surrogate keeps old rows traceable while making no false claim that an unavailable external job identity was recovered."
+        },
+        {
+            "decision": "Store structured metadata as append-only assertions outside observation identity.",
+            "rationale": "Attribute changes must remain recoverable without duplicating or rewriting the source observation."
+        },
+        {
+            "decision": "Project pre-contract JSON as funes:legacy during retrieval.",
+            "rationale": "Read compatibility can preserve original bytes and identify missing historical schema information without a destructive rewrite."
         }
     ],
     "open_questions": [],
@@ -94,7 +105,9 @@
         "A derived record must reference an existing observation and a named, versioned process.",
         "Observation acceptance never accepts a derived result.",
         "New observed and derived records require a non-empty ingestion-run reference.",
-        "Legacy surrogate run references must remain visibly namespaced under funes:legacy and must not be presented as recovered external job identities."
+        "Legacy surrogate run references must remain visibly namespaced under funes:legacy and must not be presented as recovered external job identities.",
+        "New structured metadata requires a namespaced identifier, non-empty schema version, JSON-encodable attributes, and provenance linkage.",
+        "Metadata is excluded from observation identity and has no update or delete operation."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -112,7 +125,8 @@
         "derived_record": "A later process result typed derived and linked to an evidence observation.",
         "derivation_process": "The non-empty process name and version that produced a derived result.",
         "ingestion_run": "A stable host-supplied reference for one connector, process, agent, or ingestion-job execution.",
-        "producer_context": "The producer identity and ingestion-run reference through which Funes received or derived a record."
+        "producer_context": "The producer identity and ingestion-run reference through which Funes received or derived a record.",
+        "metadata_assertion": "An immutable namespaced, schema-versioned attribute document linked to the provenance that supplied it."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -120,6 +134,7 @@
     },
     "workflows": {
         "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
+        "record_metadata": ["validate namespace, schema version, and JSON attributes", "resolve the observation and accepting provenance", "append or reuse the metadata assertion", "return all assertions in deterministic order"],
         "resolve_external_identity": ["validate the claim", "resolve same-source provenance", "find or create one stable entity for kind, source, and external identifier", "append or reuse identity provenance", "return the entity with all known external identity evidence"],
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],
