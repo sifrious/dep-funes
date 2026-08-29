@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use JsonException;
 use JsonSerializable;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class EventEnvelope implements JsonSerializable
 {

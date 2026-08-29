@@ -11,7 +11,7 @@ use JsonException;
 use Sifrious\Funes\Association\EntityAssociation;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 use Sifrious\Funes\Relationship\HistoricalRelationshipType;

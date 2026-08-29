@@ -3,7 +3,7 @@ declare(strict_types=1);
 namespace Sifrious\Funes\TwinkleHistory;
 use InvalidArgumentException;
 use Sifrious\Funes\Event\EventEnvelope;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 final class InMemoryTwinkleHistory implements TwinkleHistory
 {
     private const TYPES = ['twinkle.captured', 'twinkle.revised', 'twinkle.deferred', 'twinkle.reactivated', 'twinkle.dismissed', 'twinkle.promoted', 'twinkle.merged'];

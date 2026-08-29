@@ -7,7 +7,7 @@ namespace Sifrious\Funes\Event;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use JsonSerializable;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class DeliveryAttempt implements JsonSerializable
 {

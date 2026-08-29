@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Association;
 
 use DateTimeImmutable;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class EntityAssociation
 {
