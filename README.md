@@ -173,3 +173,5 @@ The package-bound `TextProjection` rebuilds adapter-ready text documents entirel
 
 This slice deliberately excludes crawling, URL canonicalization policy, payload compression, object storage, search projections, and mutable resource state. Callers decide what a canonical reference means; Funes preserves it without assuming a particular website platform or content domain.
 Funes also exposes a small append-only historical graph contract under `Sifrious\\Funes\\Graph`. Producers append stable entities, external identifiers, and typed relations with source and assertion type. Inferred relations must carry evidence and confidence, keeping generated meaning distinct from observed history.
+
+`TwinkleHistory` accepts immutable Elwin lifecycle envelopes without importing Elwin or Titan models. It preserves versions, provenance, merge identities, and Twinkle-to-Titan promotion subjects. Exact redelivery is idempotent, conflicting event reuse fails explicitly, and retrieval is chronologically ordered evidence rather than a current-state projection.
