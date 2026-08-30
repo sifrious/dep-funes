@@ -1,5 +1,9 @@
 # Funes
 
+> **License:** Copyright © 2026 Sifrious. All rights reserved. This is
+> publicly viewable proprietary software, not open-source software. See
+> [LICENSE.md](LICENSE.md).
+
 Funes is named after Ireneo Funes, the central figure in Jorge Luis Borges's *Funes the Memorious*. After an accident, Funes remembers every detail of everything he experiences. The name fits a package built to preserve history without flattening it, losing its source, or forgetting how one record relates to another.
 
 Unlike its namesake, the package is not intended to retain information indiscriminately. Its purpose is to make selected history trustworthy, structured, searchable, and useful.
