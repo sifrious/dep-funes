@@ -52,6 +52,16 @@ it('returns the same accepted id when the key is replayed', function (): void {
         ->and(DB::table('funes_observations')->count())->toBe(1);
 });
 
+it('rejects a retried key when the new submission is not the same accepted operation', function (): void {
+    gateway()->accept(new Submission('key-1', draft()));
+    $result = gateway()->accept(new Submission('key-1', draft(payload: 'changed-body')));
+
+    expect($result->outcome)->toBe(AcceptanceOutcome::Rejected)
+        ->and($result->errors)->toContain('The idempotency key is already bound to a different accepted submission.')
+        ->and(DB::table('funes_observations')->count())->toBe(1)
+        ->and(DB::table('funes_outbox_messages')->count())->toBe(1);
+});
+
 it('produces one accepted fact when replayed ten times', function (): void {
     for ($i = 0; $i < 10; $i++) {
         $results[] = gateway()->accept(new Submission('key-1', draft()));
@@ -62,6 +72,18 @@ it('produces one accepted fact when replayed ten times', function (): void {
     expect($ids)->toHaveCount(1)
         ->and(DB::table('funes_observations')->count())->toBe(1)
         ->and(DB::table('funes_idempotency_keys')->count())->toBe(1);
+});
+
+it('accepts separately when identity is distinct', function (): void {
+    $first = gateway()->accept(new Submission('key-1', draft()));
+    $second = gateway()->accept(new Submission('key-2', draft()));
+
+    expect($first->outcome)->toBe(AcceptanceOutcome::Accepted)
+        ->and($second->outcome)->toBe(AcceptanceOutcome::Accepted)
+        ->and($second->acceptedId)->toBe($first->acceptedId)
+        ->and(DB::table('funes_observations')->count())->toBe(1)
+        ->and(DB::table('funes_idempotency_keys')->count())->toBe(2)
+        ->and(DB::table('funes_outbox_messages')->count())->toBe(2);
 });
 
 it('rejects an invalid submission without reserving a key', function (): void {
