@@ -12,6 +12,7 @@ use Sifrious\Funes\Acceptance\AcceptanceBacklog;
 use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\SqlAcceptanceBacklog;
 use Sifrious\Funes\Acceptance\SqlAcceptanceGateway;
+use Sifrious\Funes\Correction\CorrectionService;
 use Sifrious\Funes\Diagram\GrammarParser;
 use Sifrious\Funes\Diagram\GrammarTransformer;
 use Sifrious\Funes\Diagram\LocalCompactEnglishParser;
@@ -38,6 +39,10 @@ class FunesServiceProvider extends ServiceProvider
 
         $this->app->singleton(AcceptanceGateway::class, fn ($app): AcceptanceGateway => new SqlAcceptanceGateway(
             $this->connection($app),
+            $app->make(ObservationStore::class),
+        ));
+        $this->app->singleton(CorrectionService::class, fn ($app): CorrectionService => new CorrectionService(
+            $app->make(AcceptanceGateway::class),
             $app->make(ObservationStore::class),
         ));
 
