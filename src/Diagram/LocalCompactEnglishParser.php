@@ -28,7 +28,7 @@ final class LocalCompactEnglishParser implements GrammarParser
     public function parse(string $sentence): ParsedSentence
     {
         preg_match_all("/[A-Za-z']+|[.,!?;:]/", $sentence, $matches);
-        $words = $matches[0] ?? [];
+        $words = $matches[0];
 
         if ($words === []) {
             return new ParsedSentence([], [], ['No words were found in the sentence.']);
