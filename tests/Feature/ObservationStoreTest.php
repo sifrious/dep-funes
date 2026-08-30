@@ -7,6 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
+use Sifrious\Funes\Diagram\SentenceDiagramService;
 use Sifrious\Funes\Persistence\ObservationConflict;
 use Sifrious\Funes\Persistence\ObservationNotFound;
 use Sifrious\Funes\Persistence\ObservationStore;
@@ -24,6 +25,7 @@ use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
 use Sifrious\Funes\Value\Producer;
 use Sifrious\Funes\Value\ProducerContext;
+use function Sifrious\Funes\diagram;
 
 uses(RefreshDatabase::class);
 
@@ -502,4 +504,48 @@ it('appends producer runs to an unchanged derived result', function (): void {
         ->and($second->producerContexts)->toHaveCount(2)
         ->and(DB::table('funes_extractions')->count())->toBe(1)
         ->and(DB::table('funes_extraction_provenance')->count())->toBe(2);
+});
+
+it('produces grammar graph and svg entirely offline', function (): void {
+    $result = diagram('The cat eats fish.');
+
+    expect($result['source'])->toBe('The cat eats fish.')
+        ->and($result['grammar_graph']['nodes'])->not->toBeEmpty()
+        ->and($result['grammar_graph']['edges'])->not->toBeEmpty()
+        ->and($result['svg'])->toContain('<svg')
+        ->and($result['provenance']['mode'])->toBe('offline')
+        ->and($result['provenance']['llm_used'])->toBeFalse()
+        ->and($result['timings']['total_ms'])->toBeFloat();
+});
+
+it('records diagram re-runs as new extraction versions without overwriting source', function (): void {
+    $store = app(ObservationStore::class);
+    $diagrammer = app(SentenceDiagramService::class);
+    $observation = $store->accept(observationDraft(
+        payload: 'Mary writes a clear note.',
+        metadata: [],
+    ))->observation;
+
+    $first = $diagrammer->diagramAndRecord(
+        $observation->id,
+        new ProducerContext(new Producer('funes:diagram/service', 'Funes diagram service'), new IngestionRun('funes:diagram-run/1')),
+    );
+    $second = $diagrammer->diagramAndRecord(
+        $observation->id,
+        new ProducerContext(new Producer('funes:diagram/service', 'Funes diagram service'), new IngestionRun('funes:diagram-run/2')),
+    );
+
+    $stored = DB::table('funes_extractions')
+        ->where('observation_id', $observation->id)
+        ->where('extractor', SentenceDiagramService::EXTRACTOR)
+        ->orderBy('version')
+        ->pluck('version')
+        ->all();
+    $source = $store->get($observation->id);
+
+    expect($stored)->toBe(['1', '2'])
+        ->and($first->result['source'])->toBe('Mary writes a clear note.')
+        ->and($second->result['source'])->toBe('Mary writes a clear note.')
+        ->and($second->result['provenance']['llm_used'])->toBeFalse()
+        ->and($source?->payload)->toBe('Mary writes a clear note.');
 });
