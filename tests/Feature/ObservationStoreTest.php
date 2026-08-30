@@ -25,6 +25,7 @@ use Sifrious\Funes\Value\ObservationDisposition;
 use Sifrious\Funes\Value\ObservationDraft;
 use Sifrious\Funes\Value\Producer;
 use Sifrious\Funes\Value\ProducerContext;
+
 use function Sifrious\Funes\diagram;
 
 uses(RefreshDatabase::class);
