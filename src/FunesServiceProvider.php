@@ -12,6 +12,13 @@ use Sifrious\Funes\Acceptance\AcceptanceBacklog;
 use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\SqlAcceptanceBacklog;
 use Sifrious\Funes\Acceptance\SqlAcceptanceGateway;
+use Sifrious\Funes\Diagram\GrammarParser;
+use Sifrious\Funes\Diagram\GrammarTransformer;
+use Sifrious\Funes\Diagram\LocalCompactEnglishParser;
+use Sifrious\Funes\Diagram\ReedKelloggTransformer;
+use Sifrious\Funes\Diagram\SentenceDiagramService;
+use Sifrious\Funes\Diagram\SimpleSvgRenderer;
+use Sifrious\Funes\Diagram\SvgRenderer;
 use Sifrious\Funes\Identity\IdentityRegistry;
 use Sifrious\Funes\Identity\SqlIdentityRegistry;
 use Sifrious\Funes\Persistence\ObservationStore;
@@ -44,6 +51,17 @@ class FunesServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(TextProjection::class, fn ($app): TextProjection => new SqlTextProjection(
+            $this->connection($app),
+        ));
+
+        $this->app->singleton(GrammarParser::class, fn (): GrammarParser => new LocalCompactEnglishParser);
+        $this->app->singleton(GrammarTransformer::class, fn (): GrammarTransformer => new ReedKelloggTransformer);
+        $this->app->singleton(SvgRenderer::class, fn (): SvgRenderer => new SimpleSvgRenderer);
+        $this->app->singleton(SentenceDiagramService::class, fn ($app): SentenceDiagramService => new SentenceDiagramService(
+            $app->make(GrammarParser::class),
+            $app->make(GrammarTransformer::class),
+            $app->make(SvgRenderer::class),
+            $app->make(ObservationStore::class),
             $this->connection($app),
         ));
     }
