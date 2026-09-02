@@ -50,7 +50,13 @@
         "Inferred historical assertions require non-empty evidence; observed and declared assertions do not.",
         "Historical assertion occurrence, observation, and recording times remain distinct and must be chronological, and occurrence may be unknown.",
         "A historical assertion fingerprint digests the durable fact and excludes the assertion id, observation time, and recording time, so a re-encounter of the same claim deduplicates.",
-        "Historical assertions serialize as a sifrious.historical-assertion document at contract version 1, and a serialized assertion cannot be decoded by a class of a different assertion type."
+        "Historical assertions serialize as a sifrious.historical-assertion document at contract version 1, and a serialized assertion cannot be decoded by a class of a different assertion type.",
+        "Concerns are stateless capability interfaces in Sifrious\\Funes\\Concern; they declare no properties, so composition cannot duplicate state an object already owns.",
+        "HistoricalAssertion composes HasStableIdentity, HasProvenance, HasTemporalCoordinates, HasTenantScope, and HasEvidence.",
+        "The ten concerns HistoricalAssertion does not compose are recorded in docs/concerns.md with a reason and the owner that does hold each one.",
+        "docs/concerns.md carries an invariant-ownership table in which every historical assertion invariant has exactly one owner.",
+        "SerializesTemporalCoordinates supplies the shared chronology rule and the microsecond-precision temporal wire format to historical substrate objects.",
+        "HasStableIdentity exposes stableIdentity() rather than an object-specific accessor because the concern is shared across every historical substrate object."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -160,6 +166,18 @@
         {
             "decision": "Fingerprint the durable assertion fact while excluding its identity and its observation and recording times.",
             "rationale": "Repeated ingestion of the same claim deduplicates while a different tenant, value, source, or assertion type remains a separate fact."
+        },
+        {
+            "decision": "Express concerns as stateless capability interfaces and assign every concern in the manifesto vocabulary explicitly.",
+            "rationale": "A silently omitted concern is indistinguishable from a deliberately excluded one, and stateless interfaces cannot duplicate state the provider-neutral base class already owns."
+        },
+        {
+            "decision": "Extract shared mechanics into a trait only where the mechanic genuinely repeats across objects.",
+            "rationale": "The chronology rule and temporal wire format must match across historical substrate objects for documents to compare and sort; everything else stays private to the object that uses it."
+        },
+        {
+            "decision": "Do not compose HasSourceLocator separately from HasProvenance on HistoricalAssertion.",
+            "rationale": "An assertion's provenance always includes its source locator, and two concerns exposing the same value could disagree."
         }
     ],
     "open_questions": [
@@ -205,7 +223,11 @@
         "Historical assertion values must be JSON-encodable scalars, null, or arrays; objects and resources are rejected at construction.",
         "Historical assertion predicates must be stable lowercase identifiers and assertion ids must be non-empty opaque values without whitespace.",
         "Historical assertions are readonly; a correction is a new assertion related to the earlier one, never an edit.",
-        "A concrete provider assertion class inherits through its provider family and never directly extends the provider-neutral base when a family applies."
+        "A concrete provider assertion class inherits through its provider family and never directly extends the provider-neutral base when a family applies.",
+        "A concern interface declares behavior only and never declares state.",
+        "Every provider-neutral historical object assigns each of the fifteen manifesto concerns as composed or documented as not applicable with its owner.",
+        "No invariant is enforced in more than one place; docs/concerns.md records the single owner of each.",
+        "A concern shared across historical substrate objects never names one of them in its members."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -242,7 +264,10 @@
         "historical_assertion": "One durable claim about a subject reference, carrying a predicate, a value, an assertion type, source and temporal provenance, tenant scope, and evidence.",
         "assertion_type": "Whether a claim was observed at a source, declared by a source, or inferred; fixed by the assertion subclass.",
         "assertion_fingerprint": "A digest of the durable assertion fact excluding its own identity and its observation and recording times, used to deduplicate re-encounters.",
-        "tenant_scope": "The organization, user, or explicitly unscoped boundary that owns a piece of evidence."
+        "tenant_scope": "The organization, user, or explicitly unscoped boundary that owns a piece of evidence.",
+        "concern": "A stateless capability interface, optionally paired with a stateless mechanics trait, composed by provider-neutral historical objects.",
+        "concern_register": "The docs/concerns.md record assigning every manifesto concern to an object as composed or not applicable, with its reason and real owner.",
+        "invariant_ownership": "The rule that each invariant is enforced in exactly one place, recorded per object in the concern register."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -267,7 +292,8 @@
         "retrieve_observation": ["resolve observation", "recover original payload", "recover every provenance assertion in deterministic order", "return source locators, producers, temporal coordinates, and transformation lineage"],
         "record_extraction": ["verify observation", "append versioned outcome", "commit"],
         "construct_historical_assertion": ["select the subclass whose fixed assertion type matches the claim", "validate the opaque assertion id and the stable lowercase predicate", "reject values that cannot cross the JSON serialization boundary", "require chronological occurrence, observation, and recording times", "require durable cross-package references for every piece of evidence", "require non-empty evidence when the assertion type is inferred"],
-        "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"]
+        "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"],
+        "assign_object_concerns": ["evaluate every concern in the manifesto vocabulary against the object", "compose the applicable concerns as capability interfaces on the object contract", "record each non-applicable concern with its reason and the owner that does hold it", "extract shared mechanics into a stateless trait only where the mechanic repeats across objects", "assign every invariant exactly one owner and record it"]
     },
     "content_opportunities": [
         {

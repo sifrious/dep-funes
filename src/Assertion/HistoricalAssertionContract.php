@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Sifrious\Funes\Assertion;
 
-use DateTimeImmutable;
 use JsonSerializable;
-use Sifrious\AuthorizationContract\TenantScope;
+use Sifrious\Funes\Concern\HasEvidence;
+use Sifrious\Funes\Concern\HasProvenance;
+use Sifrious\Funes\Concern\HasStableIdentity;
+use Sifrious\Funes\Concern\HasTemporalCoordinates;
+use Sifrious\Funes\Concern\HasTenantScope;
 use Sifrious\Funes\Graph\AssertionType;
-use Sifrious\Funes\Value\SourceLocator;
 use Sifrious\ReferenceContract\CrossPackageReference;
 
 /**
@@ -18,12 +20,17 @@ use Sifrious\ReferenceContract\CrossPackageReference;
  * Consumers depend on this interface without knowing which provider supplied the
  * material. No member of this contract may name a provider, a storage vendor, a
  * transport, or a framework.
+ *
+ * Identity, provenance, temporal coordinates, tenant scope, and evidence are the
+ * five concerns this object composes; they are shared with the other historical
+ * substrate objects rather than redeclared here. The members below are the ones
+ * specific to an assertion. Concerns deliberately not composed — provider identity,
+ * actor, authorization context, effective interval, immutable version, content hash,
+ * confidence, parent, and external references — are recorded with their reasons in
+ * `docs/concerns.md`.
  */
-interface HistoricalAssertionContract extends JsonSerializable
+interface HistoricalAssertionContract extends HasEvidence, HasProvenance, HasStableIdentity, HasTemporalCoordinates, HasTenantScope, JsonSerializable
 {
-    /** The stable, opaque identity of this assertion. */
-    public function assertionId(): string;
-
     /** Whether the claim was observed at a source, declared by a source, or inferred. */
     public function assertionType(): AssertionType;
 
@@ -35,31 +42,6 @@ interface HistoricalAssertionContract extends JsonSerializable
 
     /** The claimed value. Always JSON-encodable; never an object or resource. */
     public function value(): mixed;
-
-    /** Where the claim came from, in terms the owning source can resolve. */
-    public function source(): SourceLocator;
-
-    /** The provenance assertion that carried this claim, when one is recorded. */
-    public function provenance(): ?CrossPackageReference;
-
-    /** When the claimed fact held, when the source reports it. */
-    public function occurredAt(): ?DateTimeImmutable;
-
-    /** When the claim was observed at the source. */
-    public function observedAt(): DateTimeImmutable;
-
-    /** When the claim entered this history store. */
-    public function recordedAt(): DateTimeImmutable;
-
-    /** The tenant whose evidence this assertion belongs to. */
-    public function tenant(): TenantScope;
-
-    /**
-     * Supporting evidence. Non-empty for inferred assertions.
-     *
-     * @return list<CrossPackageReference>
-     */
-    public function evidence(): array;
 
     /**
      * A digest of the durable fact — type, subject, predicate, value, source,
