@@ -32,6 +32,7 @@
         "pestphp/pest": "^4.0|^5.0",
         "quain/core": "dev-main",
         "sifrious/elwin": "dev-main",
+        "sifrious/harness-contract-fixtures": "^1.0",
         "sifrious/logres": "dev-main"
     },
     "autoload": {
@@ -60,6 +61,11 @@
         }
     },
     "repositories": [
+        {
+            "name": "harness-contract-fixtures",
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-harness-contract-fixtures.git"
+        },
         {
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-authorization-contract.git"
