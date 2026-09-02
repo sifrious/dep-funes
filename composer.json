@@ -31,7 +31,7 @@
         "orchestra/testbench": "^11.0",
         "pestphp/pest": "^4.0|^5.0",
         "quain/core": "dev-main",
-        "sifrious/elwin": "dev-codex/mme-1461-user-input-intent",
+        "sifrious/elwin": "dev-main",
         "sifrious/logres": "dev-main"
     },
     "autoload": {
