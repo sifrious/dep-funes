@@ -21,6 +21,7 @@
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
         "illuminate/support": "^13.0",
+        "sifrious/event-contract": "^1.0",
         "sifrious/reference-contract": "^1.0"
     },
     "require-dev": {
@@ -58,6 +59,10 @@
         {
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-reference-contract.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-event-contract.git"
         }
     ],
     "extra": {
