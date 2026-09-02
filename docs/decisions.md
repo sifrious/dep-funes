@@ -94,3 +94,27 @@ sequence and no comparison across streams. Retryable failure, success, and dead-
 new delivery-attempt facts. Funes may preserve an event and its provenance as history, but transport,
 retry scheduling, dead-letter operation, and current execution lifecycle remain with Logres or the
 other coordinating package.
+
+## D-013 — The historical assertion taxonomy lives in the class, not in a passed-in field
+
+`HistoricalAssertionContract` and `AbstractHistoricalAssertion` establish one provider-neutral claim
+type before any provider-family or concrete subclass exists. The ABC owns identity, invariants,
+temporal semantics, and the versioned serialization boundary; a subclass supplies only its assertion
+type and provider mapping.
+
+`assertionType()` is abstract rather than a constructor argument. Observed, declared, and inferred
+are therefore distinct classes, and an observation cannot become an inference by changing a field.
+Inferred assertions require non-empty evidence. Confidence is deliberately absent: the design source
+assigns `HasConfidence` to relationship drafts, not to this object, and adding it here would be
+speculative.
+
+Alternatives considered: a single concrete assertion class carrying a type enum, rejected because it
+makes the taxonomy unenforceable and lets provider mapping leak into canonical semantics; and a
+generic `fromArray()` on the base using `new static(...)`, rejected because it silently breaks the
+moment a subclass constructor takes provider fields. Instead the base exposes a protected
+`decodeState()` that validates the envelope and refuses a payload whose serialized type does not
+match the decoding class, and each subclass writes its own `fromArray()`.
+
+The fingerprint covers the durable fact and excludes the assertion's own identity and its observation
+and recording times, so a re-encounter of the same claim deduplicates while a different tenant, value,
+or assertion type does not.

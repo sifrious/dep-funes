@@ -43,7 +43,14 @@
         "Delivery attempts are immutable records separate from event facts and represent started, succeeded, retryable-failure, or dead-lettered outcomes.",
         "Ordering exists only within an explicitly named durable stream; cross-stream and global ordering are not defined.",
         "Aleph observation, Titan work-lifecycle, and Logres runtime fixtures round-trip through the same event envelope.",
-        "Funes may preserve accepted event facts and provenance without owning transport retries or current execution lifecycle state."
+        "Funes may preserve accepted event facts and provenance without owning transport retries or current execution lifecycle state.",
+        "HistoricalAssertionContract is the provider-neutral contract for one durable claim: subject reference, stable lowercase predicate, JSON-encodable value, source locator, tenant scope, temporal coordinates, provenance, and evidence.",
+        "AbstractHistoricalAssertion owns canonical identity, invariants, temporal semantics, and the versioned serialization boundary, and is the only direct parent for provider-family assertion abstractions.",
+        "An assertion's type is fixed by its subclass through an abstract assertionType(), so observed, declared, and inferred are distinct classes rather than a mutable field.",
+        "Inferred historical assertions require non-empty evidence; observed and declared assertions do not.",
+        "Historical assertion occurrence, observation, and recording times remain distinct and must be chronological, and occurrence may be unknown.",
+        "A historical assertion fingerprint digests the durable fact and excludes the assertion id, observation time, and recording time, so a re-encounter of the same claim deduplicates.",
+        "Historical assertions serialize as a sifrious.historical-assertion document at contract version 1, and a serialized assertion cannot be decoded by a class of a different assertion type."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -141,9 +148,24 @@
         {
             "decision": "Separate immutable cross-package event facts from immutable delivery-attempt records.",
             "rationale": "At-least-once transports need replay-safe event identity while retries, failures, and dead-letter handling evolve without rewriting historical facts or moving execution authority into Funes."
+        },
+        {
+            "decision": "Fix the historical assertion type in the subclass through an abstract accessor rather than a constructor field.",
+            "rationale": "The observed, declared, and inferred taxonomy stays enforceable and an observation cannot become an inference by changing a value."
+        },
+        {
+            "decision": "Give the assertion base class a protected decodeState() helper and leave fromArray() to each subclass.",
+            "rationale": "Envelope validation and canonical decoding stay in one place without assuming every subclass shares the base constructor signature, and a payload whose serialized type does not match the decoding class is refused."
+        },
+        {
+            "decision": "Fingerprint the durable assertion fact while excluding its identity and its observation and recording times.",
+            "rationale": "Repeated ingestion of the same claim deduplicates while a different tenant, value, source, or assertion type remains a separate fact."
         }
     ],
-    "open_questions": [],
+    "open_questions": [
+        "Does HistoricalAssertion need a confidence value for inferred claims, as HistoricalRelationDraft requires, or does evidence alone suffice? The design source assigns HasConfidence to relationships and not to this object, so confidence was left out.",
+        "Should declared assertions require a preserved source-field locator, as RelationshipDeclarationDraft does for causal and parent-child relationships?"
+    ],
     "constraints": [
         "Observations and extraction results have no update operation.",
         "Acceptance must remain atomic and safe to retry.",
@@ -178,7 +200,12 @@
         "Delivery is assumed at least once; exact retries cannot create a second canonical consumer effect.",
         "No event contract field implies global ordering; a stream position applies only within its exact stream reference.",
         "Retry and dead-letter metadata cannot mutate or replace the original event.",
-        "Funes does not dispatch events, schedule retries, operate dead-letter queues, or own current execution lifecycle state."
+        "Funes does not dispatch events, schedule retries, operate dead-letter queues, or own current execution lifecycle state.",
+        "The historical assertion contract and its provider-neutral base class name no provider, storage vendor, transport, or framework.",
+        "Historical assertion values must be JSON-encodable scalars, null, or arrays; objects and resources are rejected at construction.",
+        "Historical assertion predicates must be stable lowercase identifiers and assertion ids must be non-empty opaque values without whitespace.",
+        "Historical assertions are readonly; a correction is a new assertion related to the earlier one, never an edit.",
+        "A concrete provider assertion class inherits through its provider family and never directly extends the provider-neutral base when a family applies."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -211,7 +238,11 @@
         "event_envelope": "A versioned immutable cross-package event fact with stable identity, producer, subjects, temporal coordinates, workflow links, provenance, and payload.",
         "event_fingerprint": "The SHA-256 identity of a complete serialized event envelope used to expose conflicting reuse of an event ID.",
         "event_stream_position": "An optional positive sequence scoped to one exact durable stream reference and never a global order.",
-        "delivery_attempt": "An immutable started, succeeded, retryable-failure, or dead-lettered outcome associated with an unchanged event ID and fingerprint."
+        "delivery_attempt": "An immutable started, succeeded, retryable-failure, or dead-lettered outcome associated with an unchanged event ID and fingerprint.",
+        "historical_assertion": "One durable claim about a subject reference, carrying a predicate, a value, an assertion type, source and temporal provenance, tenant scope, and evidence.",
+        "assertion_type": "Whether a claim was observed at a source, declared by a source, or inferred; fixed by the assertion subclass.",
+        "assertion_fingerprint": "A digest of the durable assertion fact excluding its own identity and its observation and recording times, used to deduplicate re-encounters.",
+        "tenant_scope": "The organization, user, or explicitly unscoped boundary that owns a piece of evidence."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -234,7 +265,9 @@
         "query_identity": ["query by source identity or stable Funes reference", "recover exact external identifiers", "recover provenance evidence in deterministic order"],
         "record_derivation": ["verify the evidence observation", "validate the process name and version", "validate producer and ingestion-run context", "append or reuse the derived result", "append or reuse producer context", "return it as explicitly derived with every known context"],
         "retrieve_observation": ["resolve observation", "recover original payload", "recover every provenance assertion in deterministic order", "return source locators, producers, temporal coordinates, and transformation lineage"],
-        "record_extraction": ["verify observation", "append versioned outcome", "commit"]
+        "record_extraction": ["verify observation", "append versioned outcome", "commit"],
+        "construct_historical_assertion": ["select the subclass whose fixed assertion type matches the claim", "validate the opaque assertion id and the stable lowercase predicate", "reject values that cannot cross the JSON serialization boundary", "require chronological occurrence, observation, and recording times", "require durable cross-package references for every piece of evidence", "require non-empty evidence when the assertion type is inferred"],
+        "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"]
     },
     "content_opportunities": [
         {
@@ -256,6 +289,16 @@
             "audience": "package and distributed-system developers",
             "skill_level": "advanced",
             "hook": "A retry is a new delivery fact, not a new event and not an edit to the old one."
+        },
+        {
+            "format": "post",
+            "user_problem": "A type enum on one class lets an observation quietly become an inference.",
+            "concept": "Put the taxonomy in the class hierarchy, not in a field",
+            "technology": "PHP abstract readonly classes and abstract accessors",
+            "project_context": "Funes historical assertion contract",
+            "audience": "application and package developers",
+            "skill_level": "intermediate",
+            "hook": "If a field can be changed, the distinction it encodes is not an invariant."
         }
     ]
 }

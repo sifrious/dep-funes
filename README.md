@@ -112,6 +112,34 @@ The stronger `caused-by` and `child-of` types require a `RelationshipDeclaration
 
 Exact retries reuse the declaration. A later source encounter appends another declaration assertion with its provenance while retaining one relationship fact. Direction is explicit: the source observation was caused by, or is a child of, the target historical event reference.
 
+## Historical assertions
+
+`HistoricalAssertionContract` is the provider-neutral contract for a single durable claim: a durable
+subject reference, a stable lowercase predicate, a JSON-encodable value, and the evidentiary and
+temporal circumstances under which the claim was made. Consumers depend on it without knowing which
+model, IDE, source-control host, or storage vendor supplied the material.
+
+`AbstractHistoricalAssertion` is the only direct parent for provider-family abstractions. It owns
+canonical identity, invariants, temporal semantics, and the versioned serialization boundary;
+subclasses supply their assertion type and provider mapping and never redefine those semantics.
+Instances are readonly, so a corrected claim becomes a new assertion related to the earlier one
+rather than an edit to it.
+
+The assertion type is fixed by the subclass rather than passed in, which is what keeps the taxonomy
+meaningful: an observation cannot silently become an inference. Inferred assertions require
+non-empty evidence. Occurrence, observation, and recording times stay distinct and must be
+chronological, and occurrence may be unknown.
+
+`fingerprint()` digests the durable fact — type, subject, predicate, value, source locator,
+occurrence, and tenant — and deliberately excludes the assertion's own identity and its observation
+and recording times. Two encounters of the same claim therefore share a fingerprint, which is what
+makes repeated ingestion idempotent, while an inference, a different tenant, or a different value
+fingerprints differently.
+
+`toArray()` emits a `sifrious.historical-assertion` document at contract version 1. Each subclass
+implements its own `fromArray()` over the shared `decodeState()` helper, so no subclass reinterprets
+the wire format and a serialized assertion cannot be decoded by a class of a different type.
+
 ## Cross-package events and delivery
 
 Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract
