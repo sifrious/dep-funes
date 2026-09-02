@@ -67,7 +67,16 @@
         "HistoricalRelationshipAssertion partitions the same observed, declared, inferred axis as HistoricalAssertion, so it takes no provider family either.",
         "HistoricalEvent is the substrate object whose subclasses genuinely partition an acquisition-family axis, so the AiModel and Claude layers belong there.",
         "The EventAcceptance and SnapshotObjectReference design notes list subclasses that partition by storage mechanism, contradicting their own invariant that persistence is supplied through adapters.",
-        "This package already puts storage behind interfaces: SqlObservationStore, SqlAcceptanceGateway, and SqlHistoricalAppender each implement an interface rather than extend a domain class."
+        "This package already puts storage behind interfaces: SqlObservationStore, SqlAcceptanceGateway, and SqlHistoricalAppender each implement an interface rather than extend a domain class.",
+        "HistoricalAssertionStore is the durable system of record for canonical historical assertions, bound in the container to SqlHistoricalAssertionStore.",
+        "Assertion appends are idempotent by fingerprint and return an explicit first or duplicate disposition; a duplicate returns the assertion already stored.",
+        "Reusing one assertion identity for a different claim raises AssertionConflict rather than overwriting.",
+        "Assertion reads are scoped to the caller's tenant and report another tenant's evidence as absent rather than forbidden, so existence does not leak.",
+        "Appending into a tenant the caller does not hold raises UnauthorizedAssertion explicitly.",
+        "asOf() reconstructs by transaction time: the latest assertion recorded at or before a moment, with tombstones applying only from when they were recorded.",
+        "An assertion withdrawal is an append-only tombstone requiring a reason; the assertion row is never deleted and a repeated tombstone preserves the original.",
+        "Assertion timestamp columns are written as UTC strings at microsecond precision because the database driver's binding format truncates to whole seconds.",
+        "HistoricalAssertionCodec holds the assertion type-to-class map so the base class does not know its own subclasses."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -197,6 +206,18 @@
         {
             "decision": "Require every subclass layer to name the axis it partitions, and add none that partitions a second axis.",
             "rationale": "A layer for a second axis is wrong beneath one sibling and collides with the sibling invariant above them; the manifesto's AiModel and Claude shape is a template for acquisition-family objects, not a shape every object must take."
+        },
+        {
+            "decision": "Make assertion history append-only, tenant-scoped, and reconstructed by transaction time.",
+            "rationale": "Immutability makes a re-encounter a duplicate rather than a change, tenant-absent reads avoid leaking existence through errors, and transaction-time reconstruction answers what was known then rather than what is believed now."
+        },
+        {
+            "decision": "Write assertion timestamp columns as explicit UTC microsecond strings rather than date bindings.",
+            "rationale": "The driver's binding format truncates to whole seconds, which would round away history the canonical document preserves; UTC keeps the columns lexicographically comparable across source offsets."
+        },
+        {
+            "decision": "Keep the assertion type-to-class map in a separate codec rather than on the base class.",
+            "rationale": "A base class that knows its own subclasses inverts the dependency the hierarchy exists to establish."
         }
     ],
     "open_questions": [
@@ -207,7 +228,8 @@
         "Should EventAcceptance take a repository interface with a SQL adapter rather than a SqlEventAcceptance subclass of its domain ABC, matching SqlObservationStore and SqlAcceptanceGateway? The design note lists the subclass but its own invariant forbids it.",
         "Should SnapshotObjectReference take a storage-locator adapter rather than ObjectStorageSnapshotReference and DatabaseSnapshotReference subclasses, for the same reason?",
         "The HistoricalEvent design note lists ClaudeHistoricalEvent as a direct subclass of the abstract, but the manifesto requires Claude types to inherit through AiModelHistoricalEvent. Confirm the nesting before MME-2448.",
-        "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion."
+        "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion.",
+        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package."
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
@@ -257,7 +279,11 @@
         "The canonical assertion representation carries a fixed key set and admits no provider-specific payload.",
         "A provider-family layer is introduced only where it adds shared semantics, not because the canonical shape allows one.",
         "A subclass layer is added only after naming both the axis it partitions and the axis the existing layers partition.",
-        "Storage mechanism is never a domain-inheritance axis; persistence is supplied through an interface and an adapter."
+        "Storage mechanism is never a domain-inheritance axis; persistence is supplied through an interface and an adapter.",
+        "The assertion store never mutates or deletes; a withdrawal is a tombstone and erasure is a separate concern.",
+        "A tombstone requires a reason and preserves the withdrawing authorization context and time.",
+        "Assertion retrieval never crosses a tenant boundary and never distinguishes another tenant's evidence from absent evidence.",
+        "Valid-time reconstruction over an effective interval is not the assertion store's concern; it reconstructs by transaction time only."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -303,7 +329,10 @@
         "inferred_assertion": "A claim a later process reasoned its way to; always carries the evidence it was drawn from.",
         "provider_family": "An acquisition or runtime layer between a provider-neutral base and a concrete provider class, introduced only where it adds shared semantics.",
         "inheritance_axis": "The single dimension a subclass layer partitions, such as epistemic status, acquisition family, or subject kind.",
-        "one_axis_rule": "The rule that an inheritance chain partitions exactly one axis and a second independent axis belongs in composition or an adapter."
+        "one_axis_rule": "The rule that an inheritance chain partitions exactly one axis and a second independent axis belongs in composition or an adapter.",
+        "assertion_disposition": "Whether an append stored a first assertion or matched a duplicate; there is no changed case, because assertions are immutable.",
+        "assertion_tombstone": "An append-only record withdrawing an assertion from the live view while preserving the claim, the withdrawing context, the time, and the reason.",
+        "transaction_time_reconstruction": "Answering what the store knew at a past moment by taking the latest assertion recorded at or before it."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -331,7 +360,9 @@
         "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"],
         "assign_object_concerns": ["evaluate every concern in the manifesto vocabulary against the object", "compose the applicable concerns as capability interfaces on the object contract", "record each non-applicable concern with its reason and the owner that does hold it", "extract shared mechanics into a stateless trait only where the mechanic repeats across objects", "assign every invariant exactly one owner and record it"],
         "add_assertion_subclass": ["confirm the design source lists the subclass and what shared semantics it adds", "extend an abstract parent, never a concrete sibling", "fix the assertion type in the class rather than accepting it as a value", "implement fromArray through the shared decodeState helper with the class's own type", "run the shared substitution suite so behavior matches every sibling"],
-        "add_subclass_layer": ["name the axis the proposed layer partitions", "name the axis the existing layers partition", "stop if they differ and put the second axis in composition or an acquisition adapter", "confirm the design source lists the layer and what shared semantics it adds", "record the call as a decision and log a Linear open question when it departs from ticket acceptance criteria"]
+        "add_subclass_layer": ["name the axis the proposed layer partitions", "name the axis the existing layers partition", "stop if they differ and put the second axis in composition or an acquisition adapter", "confirm the design source lists the layer and what shared semantics it adds", "record the call as a decision and log a Linear open question when it departs from ticket acceptance criteria"],
+        "append_historical_assertion": ["reject an assertion whose tenant is not the caller's", "return the stored assertion when its fingerprint is already held", "reject reuse of one identity for a different claim", "insert the canonical document with UTC microsecond index columns", "return an explicit first or duplicate disposition"],
+        "withdraw_historical_assertion": ["require a reason", "resolve the assertion within the caller's tenant or refuse", "return the original withdrawal when one already exists", "append the tombstone with its authorization context and time", "leave the assertion row intact for audit"]
     },
     "content_opportunities": [
         {
