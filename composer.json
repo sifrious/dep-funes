@@ -21,7 +21,7 @@
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
         "illuminate/support": "^13.0",
-        "sifrious/reference-contract": "dev-main"
+        "sifrious/reference-contract": "^1.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
