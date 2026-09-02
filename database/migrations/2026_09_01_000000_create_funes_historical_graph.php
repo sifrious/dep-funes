@@ -14,8 +14,7 @@ return new class extends Migration
             $t->string('event_id', 191)->unique();
             $t->char('event_fingerprint', 64);
             $t->char('append_fingerprint', 64);
-            $t->string('actor_reference', 512);
-            $t->string('tenant_reference', 512);
+            $t->json('authorization_context');
             $t->timestampTz('appended_at');
         });
         Schema::create('funes_entity_relations', function (Blueprint $t): void {

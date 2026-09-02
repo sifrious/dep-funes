@@ -21,6 +21,7 @@
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
         "illuminate/support": "^13.0",
+        "sifrious/authorization-contract": "dev-main",
         "sifrious/event-contract": "^1.0",
         "sifrious/reference-contract": "^1.0"
     },
@@ -28,7 +29,10 @@
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.24",
         "orchestra/testbench": "^11.0",
-        "pestphp/pest": "^4.0|^5.0"
+        "pestphp/pest": "^4.0|^5.0",
+        "quain/core": "dev-main",
+        "sifrious/elwin": "dev-codex/mme-1461-user-input-intent",
+        "sifrious/logres": "dev-main"
     },
     "autoload": {
         "psr-4": {
@@ -56,6 +60,22 @@
         }
     },
     "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-authorization-contract.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-elwin.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-logres.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/quain.git"
+        },
         {
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-reference-contract.git"

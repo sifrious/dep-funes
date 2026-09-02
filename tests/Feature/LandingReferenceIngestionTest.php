@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Sifrious\AuthorizationContract\ActorContext;
+use Sifrious\AuthorizationContract\ActorKind;
+use Sifrious\AuthorizationContract\AuthorizationContext;
+use Sifrious\AuthorizationContract\TenantScope;
 use Sifrious\EventContract\EventEnvelope;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
@@ -57,7 +61,10 @@ it('accepts and idempotently replays a versioned Landing registry reference', fu
     $associations = $store->associationsTo($landingReference);
     $historicalAppend = new HistoricalAppend(
         new EventEnvelope('landing:reference-registry:repositories:42:'.$landingReference->objectVersion, 'landing.reference-mapped', 'sifrious/landing', '1', new DateTimeImmutable('2026-09-01T12:00:00+00:00'), null, new DateTimeImmutable('2026-09-01T12:01:00+00:00'), [$landingReference], null, null, [], null, ['table' => 'repositories']),
-        new HistoricalAppendAuthorization('actor:landing-migration', 'tenant:sifrious'),
+        new HistoricalAppendAuthorization(new AuthorizationContext(
+            new ActorContext(new CrossPackageReference('sifrious/zahir', 'service', 'landing-migration'), ActorKind::Service),
+            TenantScope::forTenant('organization', new CrossPackageReference('sifrious/zahir', 'organization', 'sifrious')),
+        )),
         [new HistoricalEntityDraft($landingReference->key(), new ExternalIdentityClaim(EntityKind::Repository, 'landing:reference-registry', $landingReference->id, $first->observation->provenance[0]->id))],
         [new HistoricalIdentifierDraft($landingReference->key(), new ExternalIdentityClaim(EntityKind::Repository, 'landing:reference-registry', 'landing:repositories/42', $first->observation->provenance[0]->id))],
     );
