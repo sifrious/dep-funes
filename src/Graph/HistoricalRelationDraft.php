@@ -12,16 +12,16 @@ final readonly class HistoricalRelationDraft
      * @param  list<string>  $evidenceReferences
      */
     public function __construct(
-        public string $subjectReference,
+        public string $subjectKey,
         public string $predicate,
-        public string $objectReference,
+        public string $objectKey,
         public string $sourceReference,
         public AssertionType $assertionType,
         public array $evidenceReferences = [],
         public ?float $confidence = null,
         public ?string $occurredAt = null,
     ) {
-        if (trim($subjectReference) === '' || trim($predicate) === '' || trim($objectReference) === '' || trim($sourceReference) === '') {
+        if (trim($subjectKey) === '' || trim($predicate) === '' || trim($objectKey) === '' || trim($sourceReference) === '') {
             throw new InvalidArgumentException('Historical relation subject, predicate, object, and source are required.');
         }
 

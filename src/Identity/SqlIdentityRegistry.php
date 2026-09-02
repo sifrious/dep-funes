@@ -66,6 +66,49 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
         return $entity?->reference->kind === $reference->kind ? $entity : null;
     }
 
+    public function attach(EntityReference $entity, ExternalIdentityClaim $claim): StableEntity
+    {
+        return $this->connection->transaction(function () use ($entity, $claim): StableEntity {
+            $stable = $this->get($entity);
+            if ($stable === null || $stable->reference->kind !== $claim->kind) {
+                throw new IdentityConflict('An external identity can only be attached to an existing entity of the same kind.');
+            }
+
+            $this->evidence($claim);
+            $hash = hash('sha256', $claim->externalIdentifier);
+            $existing = $this->externalIdentity($claim->kind, $claim->sourceReference, $hash);
+            $entityId = substr($entity->id, 6);
+
+            if ($existing !== null && ((string) $existing->entity_id !== $entityId || $existing->external_identifier !== $claim->externalIdentifier)) {
+                throw new IdentityConflict('The external identity is already attached to a different stable entity.');
+            }
+
+            if ($existing === null) {
+                $identityId = (string) Str::ulid();
+                $this->connection->table('funes_external_identities')->insert([
+                    'id' => $identityId,
+                    'entity_id' => $entityId,
+                    'kind' => $claim->kind->value,
+                    'source_reference' => $claim->sourceReference,
+                    'external_identifier' => $claim->externalIdentifier,
+                    'external_identifier_hash' => $hash,
+                    'created_at' => new DateTimeImmutable,
+                ]);
+            } else {
+                $identityId = (string) $existing->id;
+            }
+
+            $this->connection->table('funes_identity_provenance')->insertOrIgnore([
+                'id' => (string) Str::ulid(),
+                'external_identity_id' => $identityId,
+                'provenance_id' => $claim->provenanceId,
+                'recorded_at' => new DateTimeImmutable,
+            ]);
+
+            return $this->stableEntity($entityId) ?? throw new IdentityConflict('The stable entity disappeared while attaching an identity.');
+        }, 3);
+    }
+
     public function find(EntityKind $kind, string $sourceReference, string $externalIdentifier): ?StableEntity
     {
         $external = $this->externalIdentity($kind, $sourceReference, hash('sha256', $externalIdentifier));
