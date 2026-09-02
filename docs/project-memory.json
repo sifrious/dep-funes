@@ -85,7 +85,13 @@
         "Rows written before the precision migration keep whatever fidelity they were stored with; lost offsets are not recoverable and are not guessed.",
         "HistoricalRelationDraft carries occurredAt as a string and is normalized through StoredTimestamp::normalize(), which rejects an unusable moment.",
         "A test asserts that no Sql* store binds a raw date or value to a *_at column.",
-        "No backfill or data-quality marker is planned for history written before the timestamp precision fix; existing Funes data is not yet significant and the earlier fidelity is accepted."
+        "No backfill or data-quality marker is planned for history written before the timestamp precision fix; existing Funes data is not yet significant and the earlier fidelity is accepted.",
+        "Full-text discovery reads funes_text_search_index, a projection rebuilt in full from stored historical assertions by Sifrious\\Funes\\Search\\FullTextSearch.",
+        "Only an assertion's claimed value is indexed; subject and source identifiers stay with deterministic identity resolution so a guessed identifier cannot surface through relevance scoring.",
+        "A search query reports identifier-shaped text through identifierCandidate() so a caller resolves it before scoring anything.",
+        "Search reads are tenant-scoped in SQL before any row is fetched, scored, or counted, so another tenant's history is absent from the hits and from the total.",
+        "Tombstoned assertions are excluded from search by joining live history at query time, so a withdrawal takes effect without a rebuild.",
+        "Search ranking is term density within a field plus a fixed point for contiguous terms, with ties broken by recency, then assertion id, then field path."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -240,6 +246,18 @@
         {
             "decision": "Accept the earlier fidelity of history written before the timestamp precision fix rather than backfill or mark it.",
             "rationale": "The offsets are unrecoverable and could only be guessed, and the data held so far is not yet significant, so a backfill would add machinery and invent precision the records never had."
+        },
+        {
+            "decision": "Match with a portable LIKE over normalized text and rank in PHP rather than adopt a vendor full-text engine.",
+            "rationale": "Ranking that behaves identically on every supported driver is testable and documentable; the FullTextSearch interface lets a larger corpus replace the implementation without moving the contract."
+        },
+        {
+            "decision": "Rank only a bounded window of matches while counting every authorized match, and report when the two differ.",
+            "rationale": "A broad query must not load a corpus into memory, and a result that ranked less than it matched should say so rather than report a total it did not score."
+        },
+        {
+            "decision": "Rebuild the search index in full rather than maintain it on the assertion write path.",
+            "rationale": "Keeping the store free of search concerns preserves the projection's disposability; the ticket asks for a rebuildable index, not an incrementally maintained one."
         }
     ],
     "open_questions": [
@@ -251,7 +269,8 @@
         "Should SnapshotObjectReference take a storage-locator adapter rather than ObjectStorageSnapshotReference and DatabaseSnapshotReference subclasses, for the same reason?",
         "The HistoricalEvent design note lists ClaudeHistoricalEvent as a direct subclass of the abstract, but the manifesto requires Claude types to inherit through AiModelHistoricalEvent. Confirm the nesting before MME-2448.",
         "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion.",
-        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package."
+        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package.",
+        "Search results go stale between rebuilds because indexing is rebuild-only. Confirm whether consumers need a scheduled rebuild, an event-driven one, or incremental indexing before Burdgeon depends on search freshness."
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
@@ -308,7 +327,10 @@
         "Valid-time reconstruction over an effective interval is not the assertion store's concern; it reconstructs by transaction time only.",
         "No Sql store binds a raw date object or value to a timestamp column; every write goes through StoredTimestamp.",
         "Stored timestamps are UTC at microsecond precision and are read back as UTC, never in the ambient timezone.",
-        "A caller-supplied timestamp string that is not a usable moment is rejected rather than stored."
+        "A caller-supplied timestamp string that is not a usable moment is rejected rather than stored.",
+        "The search index is never historical authority: nothing in the search seam writes a claim, and a destroyed index costs a rebuild and no history.",
+        "Search term normalization discards every character SQL LIKE treats as a wildcard, so a normalized term cannot carry one into a query.",
+        "A full-text query returns between one and one hundred hits per page and requires at least one searchable term."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -358,11 +380,13 @@
         "assertion_disposition": "Whether an append stored a first assertion or matched a duplicate; there is no changed case, because assertions are immutable.",
         "assertion_tombstone": "An append-only record withdrawing an assertion from the live view while preserving the claim, the withdrawing context, the time, and the reason.",
         "transaction_time_reconstruction": "Answering what the store knew at a past moment by taking the latest assertion recorded at or before it.",
-        "stored_timestamp": "The UTC, microsecond-precision column format for a moment, and the class that is the single authority for writing and reading it."
+        "stored_timestamp": "The UTC, microsecond-precision column format for a moment, and the class that is the single authority for writing and reading it.",
+        "search_hit": "One matched assertion carried whole, plus the field path and snippet explaining why it matched.",
+        "identifier_candidate": "Query text shaped like an identifier, reported so a caller resolves it deterministically before falling back to scoring."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
-        "later": ["search projections", "object payload storage", "payload compression"]
+        "later": ["semantic retrieval", "object payload storage", "payload compression"]
     },
     "workflows": {
         "accept_observation": ["validate source locator and producer", "resolve source", "resolve parent resource", "hash payload", "reuse an identical observation or preserve payload and append a changed observation", "append or reuse the provenance assertion", "resolve discovered resources", "append discovery relationships", "commit"],
@@ -389,7 +413,9 @@
         "add_subclass_layer": ["name the axis the proposed layer partitions", "name the axis the existing layers partition", "stop if they differ and put the second axis in composition or an acquisition adapter", "confirm the design source lists the layer and what shared semantics it adds", "record the call as a decision and log a Linear open question when it departs from ticket acceptance criteria"],
         "append_historical_assertion": ["reject an assertion whose tenant is not the caller's", "return the stored assertion when its fingerprint is already held", "reject reuse of one identity for a different claim", "insert the canonical document with UTC microsecond index columns", "return an explicit first or duplicate disposition"],
         "withdraw_historical_assertion": ["require a reason", "resolve the assertion within the caller's tenant or refuse", "return the original withdrawal when one already exists", "append the tombstone with its authorization context and time", "leave the assertion row intact for audit"],
-        "store_a_moment": ["normalize the moment to UTC at microsecond precision through StoredTimestamp", "bind the formatted string rather than a date object", "keep the source's reported offset in the canonical document", "read the column back as UTC, never in the ambient timezone"]
+        "store_a_moment": ["normalize the moment to UTC at microsecond precision through StoredTimestamp", "bind the formatted string rather than a date object", "keep the source's reported offset in the canonical document", "read the column back as UTC, never in the ambient timezone"],
+        "search_history_by_text": ["build a query from the caller's text and optional subject-type, predicate, and source filters", "offer any identifier candidate to identity resolution before scoring", "scope every match to the caller's tenant before fetching, scoring, or counting", "exclude tombstoned assertions by joining live history", "rank a bounded window by term density and contiguity with documented tie-breaks", "return the page, the authorized total, and each hit's canonical assertion, matched field, and snippet"],
+        "rebuild_search_index": ["discard every index row", "read every stored historical assertion", "collect the indexable strings in each claimed value", "write one row per assertion field with its normalized text", "return the row count so a caller can verify the rebuild"]
     },
     "content_opportunities": [
         {

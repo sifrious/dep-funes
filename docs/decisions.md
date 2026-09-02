@@ -267,3 +267,27 @@ rejects a value that is not a usable moment rather than storing a column that ca
 
 A test asserts no `Sql*` store binds a raw date or value to a `*_at` column, so the driver cannot
 quietly reintroduce the truncation.
+
+## D-019 — Full-text search is a rebuildable, tenant-scoped projection over assertions
+
+Discovery by text reads a `funes_text_search_index` table rebuilt entirely from stored
+historical assertions. Nothing in the search seam writes a claim, so losing or corrupting the
+index costs a rebuild and no history, and a rebuild of unchanged history produces the same hits
+in the same order.
+
+Only an assertion's claimed value is indexed. Subject and source identifiers resolve
+deterministically through the identity registry, and indexing them as prose would let a guessed
+identifier surface through relevance scoring. Identifier-shaped query text is instead reported
+back to the caller as an identifier candidate to resolve before scoring anything.
+
+The tenant filter is applied in SQL before any row is fetched, scored, or counted, so another
+tenant's history is absent from both the hits and the total. Tombstones are excluded by joining
+live history at query time rather than at rebuild time, so a withdrawn claim leaves search
+immediately.
+
+Matching is a portable `LIKE` over normalized text, and ranking happens in PHP: term density
+within a field, plus a fixed point when the caller's words appear contiguously, with ties broken
+by recency, then assertion id, then field path so pagination cannot drop or repeat a hit. This
+trades relevance sophistication for behavior that is identical on every supported driver. A
+corpus that outgrows it replaces the implementation behind the `FullTextSearch` interface without
+moving the contract.
