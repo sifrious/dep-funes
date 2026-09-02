@@ -6,6 +6,7 @@ namespace Sifrious\Funes\Reference;
 
 use InvalidArgumentException;
 use JsonException;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class ReferenceSnapshot
 {

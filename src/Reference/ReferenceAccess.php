@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Reference;
 
 use JsonException;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class ReferenceAccess
 {

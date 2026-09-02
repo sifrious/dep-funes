@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Persistence;
 
 use Sifrious\Funes\Association\EntityAssociation;
-use Sifrious\Funes\Reference\CrossPackageReference;
 use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\DiscoveryProvenance;
@@ -13,6 +12,7 @@ use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\ExtractionResult;
 use Sifrious\Funes\Value\Observation;
 use Sifrious\Funes\Value\ObservationDraft;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 interface ObservationStore
 {

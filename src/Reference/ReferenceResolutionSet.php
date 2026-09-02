@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Reference;
 
 use InvalidArgumentException;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class ReferenceResolutionSet
 {

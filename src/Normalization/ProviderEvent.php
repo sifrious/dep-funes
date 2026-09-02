@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use JsonException;
 use Sifrious\Funes\Event\EventStreamPosition;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final readonly class ProviderEvent
 {

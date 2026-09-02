@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sifrious\Funes\TwinkleHistory;
 
 use Sifrious\Funes\Event\EventEnvelope;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 interface TwinkleHistory
 {

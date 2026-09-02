@@ -6,7 +6,7 @@ namespace Sifrious\Funes\TwinkleHistory;
 
 use InvalidArgumentException;
 use Sifrious\Funes\Event\EventEnvelope;
-use Sifrious\Funes\Reference\CrossPackageReference;
+use Sifrious\ReferenceContract\CrossPackageReference;
 
 final class InMemoryTwinkleHistory implements TwinkleHistory
 {

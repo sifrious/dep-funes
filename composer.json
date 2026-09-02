@@ -20,7 +20,8 @@
         "php": "^8.4.1",
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
-        "illuminate/support": "^13.0"
+        "illuminate/support": "^13.0",
+        "sifrious/reference-contract": "^1.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
@@ -53,6 +54,12 @@
             "pestphp/pest-plugin": true
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-reference-contract.git"
+        }
+    ],
     "extra": {
         "laravel": {
             "providers": [
