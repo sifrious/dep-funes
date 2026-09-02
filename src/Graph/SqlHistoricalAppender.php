@@ -28,7 +28,7 @@ final readonly class SqlHistoricalAppender implements HistoricalAppender
 
                 return;
             }
-            $appendId = $this->connection->table('funes_graph_appends')->insertGetId(['event_id' => $eventId, 'event_fingerprint' => $append->event->fingerprint(), 'append_fingerprint' => $fingerprint, 'actor_reference' => $append->authorization->actorReference(), 'tenant_reference' => $append->authorization->tenantReference(), 'appended_at' => new DateTimeImmutable]);
+            $appendId = $this->connection->table('funes_graph_appends')->insertGetId(['event_id' => $eventId, 'event_fingerprint' => $append->event->fingerprint(), 'append_fingerprint' => $fingerprint, 'authorization_context' => json_encode($append->authorization->authorizationContext(), JSON_THROW_ON_ERROR), 'appended_at' => new DateTimeImmutable]);
             $entities = [];
             foreach ($append->entities as $draft) {
                 if (isset($entities[$draft->key])) {

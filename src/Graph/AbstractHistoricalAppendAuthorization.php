@@ -4,33 +4,23 @@ declare(strict_types=1);
 
 namespace Sifrious\Funes\Graph;
 
-use InvalidArgumentException;
+use Sifrious\AuthorizationContract\AuthorizationContext;
 
 abstract readonly class AbstractHistoricalAppendAuthorization implements HistoricalAppendAuthorizationContract
 {
-    public function __construct(private string $actor, private string $tenant)
-    {
-        if (trim($actor) === '' || trim($tenant) === '') {
-            throw new InvalidArgumentException('Historical appends require actor and tenant authorization references.');
-        }
-    }
+    public function __construct(private AuthorizationContext $authorization) {}
 
-    public function actorReference(): string
+    public function authorizationContext(): AuthorizationContext
     {
-        return $this->actor;
-    }
-
-    public function tenantReference(): string
-    {
-        return $this->tenant;
+        return $this->authorization;
     }
 
     public function toArray(): array
     {
-        return ['actor_reference' => $this->actor, 'tenant_reference' => $this->tenant];
+        return $this->authorization->toArray();
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
         return $this->toArray();

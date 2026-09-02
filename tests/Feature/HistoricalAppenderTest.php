@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Sifrious\AuthorizationContract\ActorContext;
+use Sifrious\AuthorizationContract\ActorKind;
+use Sifrious\AuthorizationContract\AuthorizationContext;
+use Sifrious\AuthorizationContract\TenantScope;
 use Sifrious\EventContract\EventEnvelope;
 use Sifrious\Funes\Graph\AssertionType;
 use Sifrious\Funes\Graph\HistoricalAppend;
@@ -21,6 +25,14 @@ use Sifrious\ReferenceContract\CrossPackageReference;
 
 uses(RefreshDatabase::class);
 
+function mme2072Authorization(string $actorId = 'user-1'): AuthorizationContext
+{
+    return new AuthorizationContext(
+        new ActorContext(new CrossPackageReference('sifrious/zahir', 'account', $actorId), ActorKind::Human),
+        TenantScope::forTenant('organization', new CrossPackageReference('sifrious/zahir', 'organization', 'sifrious')),
+    );
+}
+
 function mme2071Append(string $eventId = 'mme-1887:event:1', bool $broken = false): HistoricalAppend
 {
     $store = app(ObservationStore::class);
@@ -33,7 +45,7 @@ function mme2071Append(string $eventId = 'mme-1887:event:1', bool $broken = fals
     }
     $event = new EventEnvelope($eventId, 'historical.graph-append', 'sifrious/landing', '1', new DateTimeImmutable('2026-09-01T12:00:00+00:00'), null, new DateTimeImmutable('2026-09-01T12:01:00+00:00'), [new CrossPackageReference('sifrious/landing', 'conversation', '1')], null, 'mme-1887', [], null, ['fixture' => 'MME-1887']);
 
-    return new HistoricalAppend($event, new HistoricalAppendAuthorization('actor:user-1', 'tenant:sifrious'), $entities, [new HistoricalIdentifierDraft('commit', new ExternalIdentityClaim(EntityKind::Commit, 'mme-1887:fixture', 'git:sha:abc123', $entities[9]->identity->provenanceId))], [
+    return new HistoricalAppend($event, new HistoricalAppendAuthorization(mme2072Authorization()), $entities, [new HistoricalIdentifierDraft('commit', new ExternalIdentityClaim(EntityKind::Commit, 'mme-1887:fixture', 'git:sha:abc123', $entities[9]->identity->provenanceId))], [
         new HistoricalRelationDraft('user-input', 'started', 'conversation', 'landing:migration/mme-2071', AssertionType::Declared),
         new HistoricalRelationDraft('conversation', 'produced', 'twinkle', 'landing:migration/mme-2071', AssertionType::Observed),
         new HistoricalRelationDraft('twinkle', 'resulted-in', $broken ? 'missing' : 'plan', 'landing:migration/mme-2071', AssertionType::Declared),
@@ -52,7 +64,7 @@ it('persists the complete MME-1887 fixture through stable identities and replays
 it('rejects conflicting event reuse', function (): void {
     $append = mme2071Append();
     app(HistoricalAppender::class)->append($append);
-    $changed = new HistoricalAppend($append->event, new HistoricalAppendAuthorization('actor:other', 'tenant:sifrious'), $append->entities, $append->identifiers, $append->relations);
+    $changed = new HistoricalAppend($append->event, new HistoricalAppendAuthorization(mme2072Authorization('other')), $append->entities, $append->identifiers, $append->relations);
     expect(fn () => app(HistoricalAppender::class)->append($changed))->toThrow(HistoricalAppendConflict::class);
 });
 
