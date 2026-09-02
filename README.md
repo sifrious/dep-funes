@@ -160,6 +160,35 @@ independent axes, and an AI-model-sourced claim may be observed, declared, or in
 identity and payload mapping stay in Aleph's acquisition adapters, which normalize into these types.
 The inheritance graph and that reasoning are in [docs/concerns.md](docs/concerns.md).
 
+### Storing assertions
+
+`HistoricalAssertionStore` is the durable system of record. Every method takes the caller's
+authorization context and scopes its work to that context's tenant. Reads never cross a tenant
+boundary and never reveal that they could have: another tenant's assertion is absent, not forbidden,
+so existence does not leak through an error. Appending into a tenant the caller does not hold fails
+explicitly, because that is the caller overreaching rather than a reader being scoped.
+
+Nothing mutates or deletes. An append is idempotent by assertion fingerprint and returns an explicit
+`first` or `duplicate` disposition; a duplicate returns the assertion already stored, so a retrying
+caller learns the identity of record. Reusing one identity for a different claim is a conflict rather
+than an overwrite. The same claim held by two tenants stays two separate facts.
+
+`asOf()` reconstructs by transaction time: the latest assertion recorded at or before a given moment,
+ignoring everything the store learned afterwards. A tombstone applies only from the moment it was
+recorded, so a claim withdrawn today is still returned for a moment before the withdrawal — which is
+the point of asking what was known then rather than what is believed now. Valid-time reconstruction
+over an effective interval is not this object's concern; an assertion is a point claim.
+
+A withdrawal is a tombstone, never a delete. It requires a reason, records the withdrawing
+authorization context and time, hides the claim from the live view, and leaves the assertion row
+intact. Repeating a tombstone preserves the original withdrawal rather than restamping it. Destroying
+the underlying material is erasure, which is a separate concern.
+
+Timestamp columns are UTC index values at microsecond precision, written explicitly because the
+database driver's own binding format truncates to whole seconds — which would round away history the
+canonical document preserves. Retrieval hydrates from the document, so the offset a source reported
+survives; the columns exist to filter and order.
+
 ## Cross-package events and delivery
 
 Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract

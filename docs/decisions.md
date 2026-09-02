@@ -193,3 +193,36 @@ itself there. This package already resolves it correctly elsewhere — `SqlObser
 `SqlAcceptanceGateway`, and `SqlHistoricalAppender` all implement an interface rather than extend a
 domain class — so those two objects should take a repository interface, not a subclass. Recorded as
 an open question rather than acted on, because it changes tickets that are not yet in progress.
+
+## D-017 — Assertion history is append-only, tenant-scoped, and reconstructed by transaction time
+
+`HistoricalAssertionStore` never mutates or deletes. An append is idempotent by assertion
+fingerprint and returns an explicit `first` or `duplicate` disposition, returning the stored
+assertion on a duplicate so a retrying caller learns the identity of record. Reusing one identity for
+a different claim is a conflict, not an overwrite. Tenant is part of the fingerprint, so the same
+claim held by two tenants remains two facts.
+
+Reads are scoped to the caller's tenant and report another tenant's evidence as absent rather than
+forbidden, so existence does not leak through an error message. Appending into a tenant the caller
+does not hold fails explicitly instead, because that is the caller overreaching rather than a reader
+being correctly scoped. Explicit unauthorized outcomes at the retrieval-projection layer are
+MME-2432's concern, not this store's.
+
+`asOf()` reconstructs by transaction time only — the latest assertion recorded at or before a moment.
+A tombstone applies from the moment it was recorded, so a withdrawn claim is still returned for an
+earlier moment; anything else would answer what is believed now rather than what was known then.
+Valid-time reconstruction over an effective interval is deliberately absent, matching D-014: an
+assertion is a point claim and effective intervals belong to `HistoricalEntityVersion`.
+
+A withdrawal is a tombstone. It requires a reason, preserves the withdrawing authorization context
+and time, hides the claim from the live view, and leaves the row intact; repeating it preserves the
+original rather than restamping. Erasure of the underlying material is MME-2435's concern.
+
+Timestamp columns are written as UTC strings at microsecond precision rather than passed as date
+bindings, because the driver's binding format truncates to whole seconds. That truncation was caught
+by a test asserting the returned tombstone equals the stored one. Normalizing to UTC keeps the
+columns lexicographically comparable across source offsets; the original offset survives in the
+canonical document, which is what retrieval hydrates from.
+
+The type-to-class map for decoding lives in `HistoricalAssertionCodec`, not on the base class. A base
+class that knows its own subclasses inverts the dependency the hierarchy exists to establish.

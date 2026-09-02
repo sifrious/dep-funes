@@ -119,21 +119,30 @@ it('keeps every concrete assertion a direct child of an abstract parent', functi
 })->with(array_map(fn (array $case): string => $case[0], assertionClasses()));
 
 it('has no concrete-to-concrete shortcut anywhere in the assertion hierarchy', function (): void {
+    $checked = 0;
+
     foreach (glob(dirname(__DIR__, 2).'/src/Assertion/*.php') as $file) {
         $class = 'Sifrious\\Funes\\Assertion\\'.basename($file, '.php');
-        if (! class_exists($class)) {
+
+        // The rule governs concrete members of the assertion taxonomy, not every
+        // class that lives beside them and not the abstract base itself.
+        if (! is_subclass_of($class, HistoricalAssertionContract::class)) {
             continue;
         }
 
-        $parent = (new ReflectionClass($class))->getParentClass();
-        if ($parent === false) {
+        $reflection = new ReflectionClass($class);
+        if ($reflection->isAbstract()) {
             continue;
         }
 
-        expect($parent->isAbstract())->toBeTrue(
-            "{$class} extends the concrete class {$parent->getName()}.",
-        );
+        $parent = $reflection->getParentClass();
+        $checked++;
+
+        expect($parent)->not->toBeFalse("{$class} implements the contract without extending the base class.")
+            ->and($parent->isAbstract())->toBeTrue("{$class} extends the concrete class {$parent->getName()}.");
     }
+
+    expect($checked)->toBe(count(assertionClasses()));
 });
 
 it('keeps provider payloads out of the canonical representation', function (string $class): void {
