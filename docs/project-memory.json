@@ -61,7 +61,13 @@
         "HistoricalAssertion has no provider-family layer, because assertion type and provider family are independent axes and an AI-model-sourced claim may be observed, declared, or inferred.",
         "A test walks src/Assertion and fails on any concrete class extending another concrete class.",
         "A test pins the canonical serialized key set, so provider payloads cannot leak into the Funes representation.",
-        "The three assertion subclasses are freely substitutable: the same contract behavior, key order, and round trip hold for each."
+        "The three assertion subclasses are freely substitutable: the same contract behavior, key order, and round trip hold for each.",
+        "An inheritance chain partitions exactly one axis; a second independent axis goes into composition or an acquisition adapter.",
+        "docs/concerns.md names the axis each MME-2437 substrate object's subclasses partition and whether a provider family applies.",
+        "HistoricalRelationshipAssertion partitions the same observed, declared, inferred axis as HistoricalAssertion, so it takes no provider family either.",
+        "HistoricalEvent is the substrate object whose subclasses genuinely partition an acquisition-family axis, so the AiModel and Claude layers belong there.",
+        "The EventAcceptance and SnapshotObjectReference design notes list subclasses that partition by storage mechanism, contradicting their own invariant that persistence is supplied through adapters.",
+        "This package already puts storage behind interfaces: SqlObservationStore, SqlAcceptanceGateway, and SqlHistoricalAppender each implement an interface rather than extend a domain class."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -187,13 +193,21 @@
         {
             "decision": "Give HistoricalAssertion no provider-family layer and let its three type subclasses extend the provider-neutral base directly.",
             "rationale": "Assertion type and provider family are independent axes, so a family class beneath one type would be wrong for the others and above them would collide with the class-level type invariant; provider mapping belongs to Aleph's acquisition adapters."
+        },
+        {
+            "decision": "Require every subclass layer to name the axis it partitions, and add none that partitions a second axis.",
+            "rationale": "A layer for a second axis is wrong beneath one sibling and collides with the sibling invariant above them; the manifesto's AiModel and Claude shape is a template for acquisition-family objects, not a shape every object must take."
         }
     ],
     "open_questions": [
         "Does HistoricalAssertion need a confidence value for inferred claims, as HistoricalRelationDraft requires, or does evidence alone suffice? The design source assigns HasConfidence to relationships and not to this object, so confidence was left out.",
         "Should declared assertions require a preserved source-field locator, as RelationshipDeclarationDraft does for causal and parent-child relationships?",
         "The MME-2548 ticket template requires AiModelHistoricalAssertion and ClaudeHistoricalAssertion for every object, but the HistoricalAssertion design source lists only observed, declared, and inferred. D-015 follows the design source; confirm the template is boilerplate rather than intent.",
-        "Should DeclaredHistoricalAssertion require a preserved namespaced source-field locator and declared value, as RelationshipDeclarationDraft does for causal relationships? Left out for now because the design source does not ask for it."
+        "Should DeclaredHistoricalAssertion require a preserved namespaced source-field locator and declared value, as RelationshipDeclarationDraft does for causal relationships? Left out for now because the design source does not ask for it.",
+        "Should EventAcceptance take a repository interface with a SQL adapter rather than a SqlEventAcceptance subclass of its domain ABC, matching SqlObservationStore and SqlAcceptanceGateway? The design note lists the subclass but its own invariant forbids it.",
+        "Should SnapshotObjectReference take a storage-locator adapter rather than ObjectStorageSnapshotReference and DatabaseSnapshotReference subclasses, for the same reason?",
+        "The HistoricalEvent design note lists ClaudeHistoricalEvent as a direct subclass of the abstract, but the manifesto requires Claude types to inherit through AiModelHistoricalEvent. Confirm the nesting before MME-2448.",
+        "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion."
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
@@ -241,7 +255,9 @@
         "A concern shared across historical substrate objects never names one of them in its members.",
         "No concrete assertion class extends another concrete class; every one extends an abstract parent.",
         "The canonical assertion representation carries a fixed key set and admits no provider-specific payload.",
-        "A provider-family layer is introduced only where it adds shared semantics, not because the canonical shape allows one."
+        "A provider-family layer is introduced only where it adds shared semantics, not because the canonical shape allows one.",
+        "A subclass layer is added only after naming both the axis it partitions and the axis the existing layers partition.",
+        "Storage mechanism is never a domain-inheritance axis; persistence is supplied through an interface and an adapter."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -285,7 +301,9 @@
         "observed_assertion": "A claim the history store saw at its source; the source material itself is the evidence.",
         "declared_assertion": "A claim the source explicitly stated rather than merely exhibited.",
         "inferred_assertion": "A claim a later process reasoned its way to; always carries the evidence it was drawn from.",
-        "provider_family": "An acquisition or runtime layer between a provider-neutral base and a concrete provider class, introduced only where it adds shared semantics."
+        "provider_family": "An acquisition or runtime layer between a provider-neutral base and a concrete provider class, introduced only where it adds shared semantics.",
+        "inheritance_axis": "The single dimension a subclass layer partitions, such as epistemic status, acquisition family, or subject kind.",
+        "one_axis_rule": "The rule that an inheritance chain partitions exactly one axis and a second independent axis belongs in composition or an adapter."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -312,7 +330,8 @@
         "construct_historical_assertion": ["select the subclass whose fixed assertion type matches the claim", "validate the opaque assertion id and the stable lowercase predicate", "reject values that cannot cross the JSON serialization boundary", "require chronological occurrence, observation, and recording times", "require durable cross-package references for every piece of evidence", "require non-empty evidence when the assertion type is inferred"],
         "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"],
         "assign_object_concerns": ["evaluate every concern in the manifesto vocabulary against the object", "compose the applicable concerns as capability interfaces on the object contract", "record each non-applicable concern with its reason and the owner that does hold it", "extract shared mechanics into a stateless trait only where the mechanic repeats across objects", "assign every invariant exactly one owner and record it"],
-        "add_assertion_subclass": ["confirm the design source lists the subclass and what shared semantics it adds", "extend an abstract parent, never a concrete sibling", "fix the assertion type in the class rather than accepting it as a value", "implement fromArray through the shared decodeState helper with the class's own type", "run the shared substitution suite so behavior matches every sibling"]
+        "add_assertion_subclass": ["confirm the design source lists the subclass and what shared semantics it adds", "extend an abstract parent, never a concrete sibling", "fix the assertion type in the class rather than accepting it as a value", "implement fromArray through the shared decodeState helper with the class's own type", "run the shared substitution suite so behavior matches every sibling"],
+        "add_subclass_layer": ["name the axis the proposed layer partitions", "name the axis the existing layers partition", "stop if they differ and put the second axis in composition or an acquisition adapter", "confirm the design source lists the layer and what shared semantics it adds", "record the call as a decision and log a Linear open question when it departs from ticket acceptance criteria"]
     },
     "content_opportunities": [
         {

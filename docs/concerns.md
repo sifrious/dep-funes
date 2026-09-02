@@ -82,6 +82,39 @@ AbstractHistoricalAssertion          identity, invariants, temporal semantics, w
 Each concrete class fixes exactly one assertion type and adds nothing else. No concrete class
 extends another concrete class, and a test walks `src/Assertion` to keep it that way.
 
+### The one-axis rule
+
+An inheritance chain partitions exactly one axis. Before adding a subclass layer, name the axis it
+partitions and name the axis the existing layers partition. If they differ, the layer is wrong
+wherever it is placed: beneath one sibling it is wrong for the others, and above them it collides
+with the invariant those siblings encode. The second axis belongs in composition or an acquisition
+adapter instead.
+
+The manifesto's canonical shape — `Contract` ← `Abstract` ← `AiModel` ← `Claude` — is a template for
+objects whose subclasses partition by acquisition family. It is not a shape every object must take,
+and the manifesto says so: introduce provider-family layers only where they add shared semantics.
+
+Each substrate object's subclasses therefore partition one named axis:
+
+| Object | Axis its subclasses partition | Provider family applies? |
+| --- | --- | --- |
+| `HistoricalAssertion` | Epistemic status: observed, declared, inferred | No — independent of provider |
+| `HistoricalRelationshipAssertion` | Epistemic status: observed, declared, inferred | No — same reason |
+| `HistoricalEvent` | Acquisition family: imported, runner, AI model, Claude | Yes — the acquisition runtime *is* the axis |
+| `HistoricalEntityVersion` | Acquisition source | Single axis; one subclass today |
+| `SnapshotManifest` | Subject kind: repository, conversation, application | No — a provider family would be a second axis |
+| `EventAcceptance` | Storage mechanism — see the note below | Not a domain axis at all |
+| `SnapshotObjectReference` | Storage mechanism — see the note below | Not a domain axis at all |
+
+Storage is never a domain-inheritance axis. Every object note above carries the invariant that
+"persistence and transport are supplied through interfaces and adapters, not inherited into the
+domain ABC," which the `SqlEventAcceptance`, `ObjectStorageSnapshotReference`, and
+`DatabaseSnapshotReference` subclass listings contradict. This package already resolves that the
+right way elsewhere: `SqlObservationStore` implements the `ObservationStore` interface,
+`SqlAcceptanceGateway` implements `AcceptanceGateway`, and `SqlHistoricalAppender` implements
+`HistoricalAppender`. Those two objects should follow the same pattern rather than subclass their
+domain ABC, and the open-questions register carries the confirmation.
+
 ### Why there is no provider family here
 
 The manifesto's canonical shape inserts a provider-family layer —
