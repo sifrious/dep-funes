@@ -12,4 +12,14 @@ enum EntityKind: string
     case Repository = 'repository';
     case Organization = 'organization';
     case Domain = 'domain';
+    case UserInput = 'user-input';
+    case Conversation = 'conversation';
+    case Twinkle = 'twinkle';
+    case Plan = 'plan';
+    case PlanStep = 'plan-step';
+    case WorkKit = 'work-kit';
+    case ExecutionRequest = 'execution-request';
+    case Run = 'run';
+    case RunResult = 'run-result';
+    case Commit = 'commit';
 }

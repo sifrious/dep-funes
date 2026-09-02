@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Graph;
 
 use InvalidArgumentException;
+use Sifrious\Funes\Value\ExternalIdentityClaim;
 
 final readonly class HistoricalIdentifierDraft
 {
     public function __construct(
-        public string $entityReference,
-        public string $namespace,
-        public string $value,
+        public string $entityKey,
+        public ExternalIdentityClaim $identity,
     ) {
-        if (trim($entityReference) === '' || trim($namespace) === '' || trim($value) === '') {
-            throw new InvalidArgumentException('Historical identifier entity, namespace, and value are required.');
+        if (trim($entityKey) === '') {
+            throw new InvalidArgumentException('Historical identifier entity keys are required.');
         }
     }
 }

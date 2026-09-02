@@ -13,6 +13,8 @@ interface IdentityRegistry
 {
     public function resolve(ExternalIdentityClaim $claim): StableEntity;
 
+    public function attach(EntityReference $entity, ExternalIdentityClaim $claim): StableEntity;
+
     public function get(EntityReference $reference): ?StableEntity;
 
     public function find(EntityKind $kind, string $sourceReference, string $externalIdentifier): ?StableEntity;

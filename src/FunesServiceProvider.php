@@ -19,6 +19,8 @@ use Sifrious\Funes\Diagram\ReedKelloggTransformer;
 use Sifrious\Funes\Diagram\SentenceDiagramService;
 use Sifrious\Funes\Diagram\SimpleSvgRenderer;
 use Sifrious\Funes\Diagram\SvgRenderer;
+use Sifrious\Funes\Graph\HistoricalAppender;
+use Sifrious\Funes\Graph\SqlHistoricalAppender;
 use Sifrious\Funes\Identity\IdentityRegistry;
 use Sifrious\Funes\Identity\SqlIdentityRegistry;
 use Sifrious\Funes\Persistence\ObservationStore;
@@ -48,6 +50,11 @@ class FunesServiceProvider extends ServiceProvider
 
         $this->app->singleton(IdentityRegistry::class, fn ($app): IdentityRegistry => new SqlIdentityRegistry(
             $this->connection($app),
+        ));
+
+        $this->app->singleton(HistoricalAppender::class, fn ($app): HistoricalAppender => new SqlHistoricalAppender(
+            $this->connection($app),
+            $app->make(IdentityRegistry::class),
         ));
 
         $this->app->singleton(TextProjection::class, fn ($app): TextProjection => new SqlTextProjection(
