@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Sifrious\AuthorizationContract\TenantScope;
 use Sifrious\Funes\Assertion\AbstractHistoricalAssertion;
 use Sifrious\Funes\Assertion\HistoricalAssertionContract;
+use Sifrious\Funes\Assertion\InferredHistoricalAssertion;
+use Sifrious\Funes\Assertion\ObservedHistoricalAssertion;
 use Sifrious\Funes\Graph\AssertionType;
-use Sifrious\Funes\Tests\Fixtures\Assertion\FixtureInferredAssertion;
-use Sifrious\Funes\Tests\Fixtures\Assertion\FixtureObservedAssertion;
 use Sifrious\Funes\Value\SourceLocator;
 use Sifrious\ReferenceContract\CrossPackageReference;
 
@@ -38,8 +38,8 @@ function observedAssertion(
     string $recordedAt = '2026-08-31T12:00:00Z',
     ?CrossPackageReference $provenance = null,
     array $evidence = [],
-): FixtureObservedAssertion {
-    return new FixtureObservedAssertion(
+): ObservedHistoricalAssertion {
+    return new ObservedHistoricalAssertion(
         $id,
         assertionSubject(),
         $predicate,
@@ -108,7 +108,7 @@ it('preserves structured values through the serialization boundary', function ()
     $value = ['labels' => ['mvp', 'birding'], 'count' => 2, 'archived' => false, 'closed_at' => null];
     $assertion = observedAssertion(value: $value);
 
-    expect(FixtureObservedAssertion::fromArray($assertion->toArray())->value())->toBe($value);
+    expect(ObservedHistoricalAssertion::fromArray($assertion->toArray())->value())->toBe($value);
 });
 
 it('round-trips through its serialized form without losing provenance or evidence', function (): void {
@@ -116,7 +116,7 @@ it('round-trips through its serialized form without losing provenance or evidenc
     $evidence = [new CrossPackageReference('sifrious/aleph', 'observation', 'observation:4')];
     $assertion = observedAssertion(provenance: $provenance, evidence: $evidence);
 
-    $restored = FixtureObservedAssertion::fromArray($assertion->toArray());
+    $restored = ObservedHistoricalAssertion::fromArray($assertion->toArray());
 
     expect($restored->toArray())->toBe($assertion->toArray())
         ->and($restored->provenance()?->equals($provenance))->toBeTrue()
@@ -127,14 +127,14 @@ it('refuses to decode a serialized assertion of a different type', function (): 
     $inferred = observedAssertion()->toArray();
     $inferred['assertion_type'] = AssertionType::Inferred->value;
 
-    FixtureObservedAssertion::fromArray($inferred);
+    ObservedHistoricalAssertion::fromArray($inferred);
 })->throws(InvalidArgumentException::class, 'does not match the decoding class');
 
 it('refuses to decode an unsupported contract version', function (): void {
     $serialized = observedAssertion()->toArray();
     $serialized['contract_version'] = 2;
 
-    FixtureObservedAssertion::fromArray($serialized);
+    ObservedHistoricalAssertion::fromArray($serialized);
 })->throws(InvalidArgumentException::class, 'Unsupported historical assertion contract');
 
 it('names its contract and version in the serialized form', function (): void {
@@ -150,7 +150,7 @@ it('serializes to the same document it json-encodes', function (): void {
 });
 
 it('requires evidence for an inferred claim', function (): void {
-    new FixtureInferredAssertion(
+    new InferredHistoricalAssertion(
         'assertion:2',
         assertionSubject(),
         'relates-to',
@@ -181,7 +181,7 @@ it('fingerprints a different claim differently', function (): void {
 
 it('separates an inference from an observation of the same claim', function (): void {
     $observed = observedAssertion();
-    $inferred = new FixtureInferredAssertion(
+    $inferred = new InferredHistoricalAssertion(
         $observed->stableIdentity(),
         assertionSubject(),
         $observed->predicate(),
@@ -199,7 +199,7 @@ it('separates an inference from an observation of the same claim', function (): 
 });
 
 it('separates the same claim held by different tenants', function (): void {
-    $other = new FixtureObservedAssertion(
+    $other = new ObservedHistoricalAssertion(
         'assertion:1',
         assertionSubject(),
         'title',

@@ -144,3 +144,26 @@ else stays private to the object that uses it.
 seven objects cannot name one of them. `HasSourceLocator` is not composed separately: an assertion's
 provenance always includes its source locator, and two concerns exposing the same value could
 disagree.
+
+## D-015 — HistoricalAssertion has no provider-family layer
+
+The three concrete assertion classes — observed, declared, and inferred — extend
+`AbstractHistoricalAssertion` directly. No `AiModelHistoricalAssertion` or
+`ClaudeHistoricalAssertion` is introduced for this object.
+
+Assertion type and provider family are independent axes. An AI-model-sourced claim may be observed,
+declared, or inferred, so a family class placed beneath any one type would be wrong for the other
+two, and placed above them it would collide with the type axis that D-013 makes a class-level
+invariant. The design source lists only the three provider-neutral specializations as direct
+subclasses. Provider identity and payload mapping belong to Aleph's acquisition adapters, which
+normalize into these canonical types; a provider that Funes cannot name cannot leak into the
+canonical representation, and a test pins the serialized key set to prove it.
+
+This departs from the generic acceptance criteria on the ticket, which name
+`AiModelHistoricalAssertion` and `ClaudeHistoricalAssertion` for every object. The same ticket's
+first requirement — introduce provider-family layers only where they add shared semantics — is the
+one followed. Sibling objects differ: `HistoricalEvent` does list acquisition families as direct
+subclasses, because for an event the acquisition runtime is the shared semantics.
+
+A test walks `src/Assertion` and fails on any concrete class extending another concrete class, so a
+family layer added later cannot be bypassed.

@@ -56,7 +56,12 @@
         "The ten concerns HistoricalAssertion does not compose are recorded in docs/concerns.md with a reason and the owner that does hold each one.",
         "docs/concerns.md carries an invariant-ownership table in which every historical assertion invariant has exactly one owner.",
         "SerializesTemporalCoordinates supplies the shared chronology rule and the microsecond-precision temporal wire format to historical substrate objects.",
-        "HasStableIdentity exposes stableIdentity() rather than an object-specific accessor because the concern is shared across every historical substrate object."
+        "HasStableIdentity exposes stableIdentity() rather than an object-specific accessor because the concern is shared across every historical substrate object.",
+        "ObservedHistoricalAssertion, DeclaredHistoricalAssertion, and InferredHistoricalAssertion are the three concrete assertion classes; each fixes one assertion type and adds nothing else.",
+        "HistoricalAssertion has no provider-family layer, because assertion type and provider family are independent axes and an AI-model-sourced claim may be observed, declared, or inferred.",
+        "A test walks src/Assertion and fails on any concrete class extending another concrete class.",
+        "A test pins the canonical serialized key set, so provider payloads cannot leak into the Funes representation.",
+        "The three assertion subclasses are freely substitutable: the same contract behavior, key order, and round trip hold for each."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -178,11 +183,17 @@
         {
             "decision": "Do not compose HasSourceLocator separately from HasProvenance on HistoricalAssertion.",
             "rationale": "An assertion's provenance always includes its source locator, and two concerns exposing the same value could disagree."
+        },
+        {
+            "decision": "Give HistoricalAssertion no provider-family layer and let its three type subclasses extend the provider-neutral base directly.",
+            "rationale": "Assertion type and provider family are independent axes, so a family class beneath one type would be wrong for the others and above them would collide with the class-level type invariant; provider mapping belongs to Aleph's acquisition adapters."
         }
     ],
     "open_questions": [
         "Does HistoricalAssertion need a confidence value for inferred claims, as HistoricalRelationDraft requires, or does evidence alone suffice? The design source assigns HasConfidence to relationships and not to this object, so confidence was left out.",
-        "Should declared assertions require a preserved source-field locator, as RelationshipDeclarationDraft does for causal and parent-child relationships?"
+        "Should declared assertions require a preserved source-field locator, as RelationshipDeclarationDraft does for causal and parent-child relationships?",
+        "The MME-2548 ticket template requires AiModelHistoricalAssertion and ClaudeHistoricalAssertion for every object, but the HistoricalAssertion design source lists only observed, declared, and inferred. D-015 follows the design source; confirm the template is boilerplate rather than intent.",
+        "Should DeclaredHistoricalAssertion require a preserved namespaced source-field locator and declared value, as RelationshipDeclarationDraft does for causal relationships? Left out for now because the design source does not ask for it."
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
@@ -227,7 +238,10 @@
         "A concern interface declares behavior only and never declares state.",
         "Every provider-neutral historical object assigns each of the fifteen manifesto concerns as composed or documented as not applicable with its owner.",
         "No invariant is enforced in more than one place; docs/concerns.md records the single owner of each.",
-        "A concern shared across historical substrate objects never names one of them in its members."
+        "A concern shared across historical substrate objects never names one of them in its members.",
+        "No concrete assertion class extends another concrete class; every one extends an abstract parent.",
+        "The canonical assertion representation carries a fixed key set and admits no provider-specific payload.",
+        "A provider-family layer is introduced only where it adds shared semantics, not because the canonical shape allows one."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -267,7 +281,11 @@
         "tenant_scope": "The organization, user, or explicitly unscoped boundary that owns a piece of evidence.",
         "concern": "A stateless capability interface, optionally paired with a stateless mechanics trait, composed by provider-neutral historical objects.",
         "concern_register": "The docs/concerns.md record assigning every manifesto concern to an object as composed or not applicable, with its reason and real owner.",
-        "invariant_ownership": "The rule that each invariant is enforced in exactly one place, recorded per object in the concern register."
+        "invariant_ownership": "The rule that each invariant is enforced in exactly one place, recorded per object in the concern register.",
+        "observed_assertion": "A claim the history store saw at its source; the source material itself is the evidence.",
+        "declared_assertion": "A claim the source explicitly stated rather than merely exhibited.",
+        "inferred_assertion": "A claim a later process reasoned its way to; always carries the evidence it was drawn from.",
+        "provider_family": "An acquisition or runtime layer between a provider-neutral base and a concrete provider class, introduced only where it adds shared semantics."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -293,7 +311,8 @@
         "record_extraction": ["verify observation", "append versioned outcome", "commit"],
         "construct_historical_assertion": ["select the subclass whose fixed assertion type matches the claim", "validate the opaque assertion id and the stable lowercase predicate", "reject values that cannot cross the JSON serialization boundary", "require chronological occurrence, observation, and recording times", "require durable cross-package references for every piece of evidence", "require non-empty evidence when the assertion type is inferred"],
         "deserialize_historical_assertion": ["reject an unsupported contract name or version", "reject a serialized assertion type that does not match the decoding class", "decode the provider-neutral state through the shared helper", "reconstruct through the subclass constructor so every invariant is revalidated"],
-        "assign_object_concerns": ["evaluate every concern in the manifesto vocabulary against the object", "compose the applicable concerns as capability interfaces on the object contract", "record each non-applicable concern with its reason and the owner that does hold it", "extract shared mechanics into a stateless trait only where the mechanic repeats across objects", "assign every invariant exactly one owner and record it"]
+        "assign_object_concerns": ["evaluate every concern in the manifesto vocabulary against the object", "compose the applicable concerns as capability interfaces on the object contract", "record each non-applicable concern with its reason and the owner that does hold it", "extract shared mechanics into a stateless trait only where the mechanic repeats across objects", "assign every invariant exactly one owner and record it"],
+        "add_assertion_subclass": ["confirm the design source lists the subclass and what shared semantics it adds", "extend an abstract parent, never a concrete sibling", "fix the assertion type in the class rather than accepting it as a value", "implement fromArray through the shared decodeState helper with the class's own type", "run the shared substitution suite so behavior matches every sibling"]
     },
     "content_opportunities": [
         {

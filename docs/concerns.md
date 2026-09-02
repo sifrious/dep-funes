@@ -67,3 +67,36 @@ Each invariant has exactly one owner. None is enforced in two places.
 | The assertion type is fixed by the class, not by a value | Each concrete subclass |
 | Tenant scope kinds are stable lowercase identifiers, and only `unscoped` omits a tenant | `TenantScope` |
 | Source locators require a source reference, source name, and resource reference | `SourceLocator` |
+
+## HistoricalAssertion inheritance graph
+
+```text
+HistoricalAssertionContract          composes the five concerns above
+        ▲
+AbstractHistoricalAssertion          identity, invariants, temporal semantics, wire format
+        ├── ObservedHistoricalAssertion
+        ├── DeclaredHistoricalAssertion
+        └── InferredHistoricalAssertion
+```
+
+Each concrete class fixes exactly one assertion type and adds nothing else. No concrete class
+extends another concrete class, and a test walks `src/Assertion` to keep it that way.
+
+### Why there is no provider family here
+
+The manifesto's canonical shape inserts a provider-family layer —
+`Abstract<Object>` ← `AiModel<Object>` ← `Claude<Object>` — and instructs that one be introduced
+"only where they add shared semantics." For `HistoricalAssertion` there are none to add. The design
+source lists observed, declared, and inferred as the only direct subclasses, and those are
+provider-neutral specializations rather than acquisition families.
+
+The reason is structural: assertion type and provider family are independent axes. An
+AI-model-sourced claim can be observed, declared, or inferred, so an `AiModelHistoricalAssertion`
+placed under any one of them would be wrong for the other two, and placed above them it would
+collide with the type axis that D-013 makes a class-level invariant. Provider identity and payload
+mapping belong to Aleph's acquisition adapters, which normalize into these canonical types.
+
+Sibling objects differ. `HistoricalEvent`'s design source does list acquisition families —
+`ImportedLandingEvent`, `RunnerHistoricalEvent`, `AiModelHistoricalEvent`, `ClaudeHistoricalEvent` —
+as direct subclasses, because for an event the acquisition runtime is the shared semantics. The
+family layer belongs there, not here.
