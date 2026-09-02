@@ -28,8 +28,8 @@ final readonly class SqlTextProjection implements TextProjection
                     'language' => $text->language,
                     'text' => $text->text,
                     'text_hash' => $text->text_hash,
-                    // Already a stored value; normalizing is a no-op for rows written
-                    // after the precision fix and repairs the format of older ones.
+                    // Already a stored value; normalizing keeps the projection in one
+                    // format whatever fidelity the source row was written with.
                     'recorded_at' => StoredTimestamp::normalize($text->recorded_at),
                 ]);
             }

@@ -255,6 +255,12 @@ why the earlier column change did not fix anything on its own; MySQL and Postgre
 insert. Rows written before this migration keep whatever fidelity they were stored with — the lost
 offsets are not recoverable, and no attempt is made to guess them.
 
+That earlier history is accepted as is. No backfill and no data-quality marker: the offsets could
+only be guessed, and the data recorded so far is development data no consumer depends on. A backfill
+would add machinery to invent precision the records never had. The migration still alters columns in
+place rather than the original migrations being edited, so a database that has already run them
+reaches precision 6 without being rebuilt.
+
 `HistoricalRelationDraft` carries `occurredAt` as a raw string that was bound verbatim, inheriting the
 same disease with no normalization at all. It now goes through `StoredTimestamp::normalize()`, which
 rejects a value that is not a usable moment rather than storing a column that cannot be compared.

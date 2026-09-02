@@ -84,11 +84,13 @@
         "The 2026_09_02_010000 migration raises all twenty-three pre-existing Funes timestamp columns to precision 6.",
         "Rows written before the precision migration keep whatever fidelity they were stored with; lost offsets are not recoverable and are not guessed.",
         "HistoricalRelationDraft carries occurredAt as a string and is normalized through StoredTimestamp::normalize(), which rejects an unusable moment.",
-        "A test asserts that no Sql* store binds a raw date or value to a *_at column."
+        "A test asserts that no Sql* store binds a raw date or value to a *_at column.",
+        "No backfill or data-quality marker is planned for history written before the timestamp precision fix; existing Funes data is not yet significant and the earlier fidelity is accepted."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
-        "A new extraction outcome for the same extractor requires a new extractor version."
+        "A new extraction outcome for the same extractor requires a new extractor version.",
+        "Funes history recorded before 2026-09-02 is development data that no consumer depends on."
     ],
     "decisions": [
         {
@@ -234,6 +236,10 @@
         {
             "decision": "Keep the source's reported offset in the canonical document rather than in the column.",
             "rationale": "Columns exist to filter and order and must be uniformly comparable; the record of what a source said belongs to the document retrieval hydrates from."
+        },
+        {
+            "decision": "Accept the earlier fidelity of history written before the timestamp precision fix rather than backfill or mark it.",
+            "rationale": "The offsets are unrecoverable and could only be guessed, and the data held so far is not yet significant, so a backfill would add machinery and invent precision the records never had."
         }
     ],
     "open_questions": [
@@ -245,8 +251,7 @@
         "Should SnapshotObjectReference take a storage-locator adapter rather than ObjectStorageSnapshotReference and DatabaseSnapshotReference subclasses, for the same reason?",
         "The HistoricalEvent design note lists ClaudeHistoricalEvent as a direct subclass of the abstract, but the manifesto requires Claude types to inherit through AiModelHistoricalEvent. Confirm the nesting before MME-2448.",
         "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion.",
-        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package.",
-        "Rows written before the 2026_09_02_010000 precision migration lost their reported offsets and sub-second precision. Is a backfill or a data-quality marker wanted for existing history, or is accepting the earlier fidelity acceptable?"
+        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package."
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
