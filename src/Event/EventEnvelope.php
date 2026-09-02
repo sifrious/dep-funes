@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Sifrious\Funes\Event;
 
+use Sifrious\EventContract\EventEnvelope as PortableEventEnvelope;
+
 /**
  * @deprecated Import Sifrious\EventContract\EventEnvelope directly.
  *
- * This alias preserves the Funes v1 public namespace while the canonical,
+ * This adapter preserves the Funes v1 public namespace while the canonical,
  * framework-neutral implementation lives in sifrious/event-contract.
  */
-class_alias(\Sifrious\EventContract\EventEnvelope::class, EventEnvelope::class);
+final readonly class EventEnvelope extends PortableEventEnvelope
+{
+}
