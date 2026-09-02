@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
 use Sifrious\Funes\Persistence\ObservationStore;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Throwable;
 
 final readonly class SqlAcceptanceGateway implements AcceptanceGateway
@@ -44,13 +45,13 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
                     'accepted_type' => 'observation',
                     'accepted_id' => $accepted->observation->id,
                     'payload_hash' => $accepted->observation->payloadHash,
-                    'accepted_at' => $now,
+                    'accepted_at' => StoredTimestamp::format($now),
                 ]);
 
             if ($submission->occurredAt !== null) {
                 $this->connection->table('funes_observations')
                     ->where('id', $accepted->observation->id)
-                    ->update(['occurred_at' => $submission->occurredAt]);
+                    ->update(['occurred_at' => StoredTimestamp::format($submission->occurredAt)]);
             }
 
             $this->emit($accepted->observation->id, $submission, $now);
@@ -86,7 +87,7 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
     {
         return $this->connection->table('funes_idempotency_keys')->insertOrIgnore([
             'key' => $key,
-            'reserved_at' => new DateTimeImmutable,
+            'reserved_at' => StoredTimestamp::format(new DateTimeImmutable),
         ]) === 1;
     }
 
@@ -136,7 +137,7 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
                 'source' => $submission->draft->sourceReference,
                 'resource' => $submission->draft->resourceReference,
             ], JSON_THROW_ON_ERROR),
-            'created_at' => $now,
+            'created_at' => StoredTimestamp::format($now),
         ]);
     }
 

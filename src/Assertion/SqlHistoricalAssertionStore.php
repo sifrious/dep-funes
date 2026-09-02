@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace Sifrious\Funes\Assertion;
 
 use DateTimeImmutable;
-use DateTimeInterface;
-use DateTimeZone;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Query\Builder;
 use InvalidArgumentException;
 use JsonException;
 use Sifrious\AuthorizationContract\AuthorizationContext;
 use Sifrious\AuthorizationContract\TenantScope;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\ReferenceContract\CrossPackageReference;
 use stdClass;
 
@@ -55,9 +54,9 @@ final readonly class SqlHistoricalAssertionStore implements HistoricalAssertionS
                 'subject_key' => $assertion->subject()->key(),
                 'predicate' => $assertion->predicate(),
                 'tenant_key' => self::tenantKey($assertion->tenant()),
-                'occurred_at' => $assertion->occurredAt() === null ? null : self::stamp($assertion->occurredAt()),
-                'observed_at' => self::stamp($assertion->observedAt()),
-                'recorded_at' => self::stamp($assertion->recordedAt()),
+                'occurred_at' => StoredTimestamp::format($assertion->occurredAt()),
+                'observed_at' => StoredTimestamp::format($assertion->observedAt()),
+                'recorded_at' => StoredTimestamp::format($assertion->recordedAt()),
                 'document' => self::encode($assertion->toArray()),
             ]);
 
@@ -95,10 +94,10 @@ final readonly class SqlHistoricalAssertionStore implements HistoricalAssertionS
             ->where('tenant_key', self::tenantKey($authorization->tenant))
             ->where('subject_key', $subject->key())
             ->where('predicate', $predicate)
-            ->where('recorded_at', '<=', self::stamp($knownAt))
+            ->where('recorded_at', '<=', StoredTimestamp::format($knownAt))
             ->where(function ($query) use ($knownAt): void {
                 $query->whereNull('funes_assertion_tombstones.assertion_id')
-                    ->orWhere('funes_assertion_tombstones.tombstoned_at', '>', self::stamp($knownAt));
+                    ->orWhere('funes_assertion_tombstones.tombstoned_at', '>', StoredTimestamp::format($knownAt));
             })
             ->orderByDesc('recorded_at')
             ->orderByDesc('funes_historical_assertions.id')
@@ -136,7 +135,7 @@ final readonly class SqlHistoricalAssertionStore implements HistoricalAssertionS
                 'assertion_id' => $id,
                 'reason' => $reason,
                 'authorization_context' => self::encode($authorization->toArray()),
-                'tombstoned_at' => self::stamp($tombstone->tombstonedAt),
+                'tombstoned_at' => StoredTimestamp::format($tombstone->tombstonedAt),
             ]);
 
             return $tombstone;
@@ -165,7 +164,7 @@ final readonly class SqlHistoricalAssertionStore implements HistoricalAssertionS
             $id,
             $row->reason,
             AuthorizationContext::fromArray(self::decode($row->authorization_context)),
-            new DateTimeImmutable($row->tombstoned_at, new DateTimeZone('UTC')),
+            StoredTimestamp::require($row->tombstoned_at),
         );
     }
 
@@ -182,22 +181,6 @@ final readonly class SqlHistoricalAssertionStore implements HistoricalAssertionS
     private function hydrate(stdClass $row): AbstractHistoricalAssertion
     {
         return HistoricalAssertionCodec::decode(self::decode($row->document));
-    }
-
-    /**
-     * Timestamp columns are UTC index values with microsecond precision.
-     *
-     * The driver's own binding format truncates to whole seconds, which would round
-     * away history the canonical document preserves, so times are formatted here
-     * instead. Normalizing to UTC keeps the columns lexicographically comparable
-     * regardless of the offset a source reported; the original offset survives in the
-     * document, which is what retrieval hydrates from.
-     */
-    private static function stamp(DateTimeInterface $time): string
-    {
-        return DateTimeImmutable::createFromInterface($time)
-            ->setTimezone(new DateTimeZone('UTC'))
-            ->format('Y-m-d H:i:s.u');
     }
 
     private static function tenantKey(TenantScope $tenant): string

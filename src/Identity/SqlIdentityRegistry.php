@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
 use JsonException;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\Funes\Value\EntityKind;
 use Sifrious\Funes\Value\EntityReference;
 use Sifrious\Funes\Value\ExternalIdentity;
@@ -42,7 +43,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
                 'id' => (string) Str::ulid(),
                 'external_identity_id' => $external->id,
                 'provenance_id' => $claim->provenanceId,
-                'recorded_at' => new DateTimeImmutable,
+                'recorded_at' => StoredTimestamp::format(new DateTimeImmutable),
             ]);
 
             $entity = $this->stableEntity((string) $external->entity_id);
@@ -92,7 +93,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
                     'source_reference' => $claim->sourceReference,
                     'external_identifier' => $claim->externalIdentifier,
                     'external_identifier_hash' => $hash,
-                    'created_at' => new DateTimeImmutable,
+                    'created_at' => StoredTimestamp::format(new DateTimeImmutable),
                 ]);
             } else {
                 $identityId = (string) $existing->id;
@@ -102,7 +103,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
                 'id' => (string) Str::ulid(),
                 'external_identity_id' => $identityId,
                 'provenance_id' => $claim->provenanceId,
-                'recorded_at' => new DateTimeImmutable,
+                'recorded_at' => StoredTimestamp::format(new DateTimeImmutable),
             ]);
 
             return $this->stableEntity($entityId) ?? throw new IdentityConflict('The stable entity disappeared while attaching an identity.');
@@ -155,7 +156,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
         $this->connection->table('funes_entities')->insert([
             'id' => $entityId,
             'kind' => $claim->kind->value,
-            'created_at' => $now,
+            'created_at' => StoredTimestamp::format($now),
         ]);
 
         $inserted = $this->connection->table('funes_external_identities')->insertOrIgnore([
@@ -165,7 +166,7 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
             'source_reference' => $claim->sourceReference,
             'external_identifier' => $claim->externalIdentifier,
             'external_identifier_hash' => $identifierHash,
-            'created_at' => $now,
+            'created_at' => StoredTimestamp::format($now),
         ]);
 
         if (! $inserted) {
@@ -235,9 +236,9 @@ final readonly class SqlIdentityRegistry implements IdentityRegistry
                 ),
                 new Producer((string) $item->producer_reference, (string) $item->producer_name),
                 new IngestionRun((string) $item->ingestion_run_reference),
-                $item->occurred_at === null ? null : new DateTimeImmutable((string) $item->occurred_at),
-                new DateTimeImmutable((string) $item->observed_at),
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::parse($item->occurred_at),
+                StoredTimestamp::require($item->observed_at),
+                StoredTimestamp::require($item->recorded_at),
                 $this->decode((string) $item->transformation_lineage),
             ))
             ->all());

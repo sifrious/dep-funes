@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Sifrious\Funes\Text;
 
-use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\Funes\Value\TextAssertion;
 use stdClass;
 
@@ -28,7 +28,9 @@ final readonly class SqlTextProjection implements TextProjection
                     'language' => $text->language,
                     'text' => $text->text,
                     'text_hash' => $text->text_hash,
-                    'recorded_at' => $text->recorded_at,
+                    // Already a stored value; normalizing keeps the projection in one
+                    // format whatever fidelity the source row was written with.
+                    'recorded_at' => StoredTimestamp::normalize($text->recorded_at),
                 ]);
             }
 
@@ -64,7 +66,7 @@ final readonly class SqlTextProjection implements TextProjection
                     'language' => null,
                     'text' => $payload->contents,
                     'text_hash' => $payload->payload_hash,
-                    'recorded_at' => $payload->ingested_at,
+                    'recorded_at' => StoredTimestamp::normalize($payload->ingested_at),
                 ]);
             }
 
@@ -86,7 +88,7 @@ final readonly class SqlTextProjection implements TextProjection
                 (string) $item->text,
                 (string) $item->text_hash,
                 $item->language === null ? null : (string) $item->language,
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::require($item->recorded_at),
             ))
             ->all());
     }
