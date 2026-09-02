@@ -28,7 +28,8 @@
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.24",
         "orchestra/testbench": "^11.0",
-        "pestphp/pest": "^4.0|^5.0"
+        "pestphp/pest": "^4.0|^5.0",
+        "sifrious/harness-contract-fixtures": "^1.0"
     },
     "autoload": {
         "psr-4": {
@@ -56,6 +57,11 @@
         }
     },
     "repositories": [
+        {
+            "name": "harness-contract-fixtures",
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-harness-contract-fixtures.git"
+        },
         {
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-reference-contract.git"
