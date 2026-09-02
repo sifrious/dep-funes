@@ -9,6 +9,4 @@ use Sifrious\EventContract\EventStreamPosition as PortableEventStreamPosition;
 /**
  * @deprecated Import Sifrious\EventContract\EventStreamPosition directly.
  */
-final readonly class EventStreamPosition extends PortableEventStreamPosition
-{
-}
+final readonly class EventStreamPosition extends PortableEventStreamPosition {}

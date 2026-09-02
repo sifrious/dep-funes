@@ -12,6 +12,4 @@ use Sifrious\EventContract\EventEnvelope as PortableEventEnvelope;
  * This adapter preserves the Funes v1 public namespace while the canonical,
  * framework-neutral implementation lives in sifrious/event-contract.
  */
-final readonly class EventEnvelope extends PortableEventEnvelope
-{
-}
+final readonly class EventEnvelope extends PortableEventEnvelope {}
