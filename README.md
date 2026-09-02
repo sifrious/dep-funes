@@ -151,6 +151,15 @@ Concerns deliberately not composed are recorded with their reasons and their rea
 [docs/concerns.md](docs/concerns.md), alongside the invariant-ownership table. A missing concern and
 a deliberately excluded one are otherwise indistinguishable after the fact.
 
+Three concrete classes complete the assertion taxonomy: `ObservedHistoricalAssertion` for what a
+source showed, `DeclaredHistoricalAssertion` for what a source explicitly stated, and
+`InferredHistoricalAssertion` for what a later process reasoned its way to. Each fixes one type and
+adds nothing else, so the three are freely substitutable and produce the same observable contract
+behavior. There is no provider-family layer on this object: assertion type and provider family are
+independent axes, and an AI-model-sourced claim may be observed, declared, or inferred. Provider
+identity and payload mapping stay in Aleph's acquisition adapters, which normalize into these types.
+The inheritance graph and that reasoning are in [docs/concerns.md](docs/concerns.md).
+
 ## Cross-package events and delivery
 
 Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract

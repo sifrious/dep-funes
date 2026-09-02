@@ -2,26 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Sifrious\Funes\Tests\Fixtures\Assertion;
+namespace Sifrious\Funes\Assertion;
 
-use Sifrious\Funes\Assertion\AbstractHistoricalAssertion;
 use Sifrious\Funes\Graph\AssertionType;
 
 /**
- * A test double standing in for an observed assertion subclass until the real
- * provider-family and concrete subclasses land. It adds no semantics of its own.
+ * A claim some later process reasoned its way to.
+ *
+ * An inference is never an observed fact and must never become indistinguishable from
+ * one. The base class requires non-empty evidence for this type, so an inference always
+ * names the material it was drawn from and a reader can follow it back.
  */
-final readonly class FixtureObservedAssertion extends AbstractHistoricalAssertion
+final readonly class InferredHistoricalAssertion extends AbstractHistoricalAssertion
 {
     public function assertionType(): AssertionType
     {
-        return AssertionType::Observed;
+        return AssertionType::Inferred;
     }
 
     /** @param array<string, mixed> $serialized */
     public static function fromArray(array $serialized): self
     {
-        $state = self::decodeState($serialized, AssertionType::Observed);
+        $state = self::decodeState($serialized, AssertionType::Inferred);
 
         return new self(
             $state['id'],

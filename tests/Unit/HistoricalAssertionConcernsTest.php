@@ -5,13 +5,13 @@ declare(strict_types=1);
 use Sifrious\AuthorizationContract\TenantScope;
 use Sifrious\Funes\Assertion\AbstractHistoricalAssertion;
 use Sifrious\Funes\Assertion\HistoricalAssertionContract;
+use Sifrious\Funes\Assertion\ObservedHistoricalAssertion;
 use Sifrious\Funes\Concern\HasEvidence;
 use Sifrious\Funes\Concern\HasProvenance;
 use Sifrious\Funes\Concern\HasStableIdentity;
 use Sifrious\Funes\Concern\HasTemporalCoordinates;
 use Sifrious\Funes\Concern\HasTenantScope;
 use Sifrious\Funes\Concern\SerializesTemporalCoordinates;
-use Sifrious\Funes\Tests\Fixtures\Assertion\FixtureObservedAssertion;
 use Sifrious\Funes\Value\SourceLocator;
 use Sifrious\ReferenceContract\CrossPackageReference;
 
@@ -144,8 +144,8 @@ function concernAssertion(
     ?CrossPackageReference $provenance = null,
     array $evidence = [],
     string $observedAt = '2026-08-30T12:00:00Z',
-): FixtureObservedAssertion {
-    return new FixtureObservedAssertion(
+): ObservedHistoricalAssertion {
+    return new ObservedHistoricalAssertion(
         'assertion:1',
         new CrossPackageReference('sifrious/elwin', 'conversation', 'chat:1'),
         'title',
