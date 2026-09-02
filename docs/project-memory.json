@@ -76,7 +76,15 @@
         "asOf() reconstructs by transaction time: the latest assertion recorded at or before a moment, with tombstones applying only from when they were recorded.",
         "An assertion withdrawal is an append-only tombstone requiring a reason; the assertion row is never deleted and a repeated tombstone preserves the original.",
         "Assertion timestamp columns are written as UTC strings at microsecond precision because the database driver's binding format truncates to whole seconds.",
-        "HistoricalAssertionCodec holds the assertion type-to-class map so the base class does not know its own subclasses."
+        "HistoricalAssertionCodec holds the assertion type-to-class map so the base class does not know its own subclasses.",
+        "StoredTimestamp is the single authority for writing a moment to a Funes column and reading it back; stores bind its output rather than a date object.",
+        "Stored moments are normalized to UTC at microsecond precision so columns stay lexicographically comparable across source offsets.",
+        "The database driver's own date binding formatted values in their arriving timezone and truncated to whole seconds, so one instant reported through two offsets was stored as two different instants.",
+        "Reads previously parsed stored timestamps in the process's ambient timezone, so the recovered instant depended on where the code ran.",
+        "The 2026_09_02_010000 migration raises all twenty-three pre-existing Funes timestamp columns to precision 6.",
+        "Rows written before the precision migration keep whatever fidelity they were stored with; lost offsets are not recoverable and are not guessed.",
+        "HistoricalRelationDraft carries occurredAt as a string and is normalized through StoredTimestamp::normalize(), which rejects an unusable moment.",
+        "A test asserts that no Sql* store binds a raw date or value to a *_at column."
     ],
     "assumptions": [
         "Crawler-provided source and canonical resource references are stable opaque strings.",
@@ -218,6 +226,14 @@
         {
             "decision": "Keep the assertion type-to-class map in a separate codec rather than on the base class.",
             "rationale": "A base class that knows its own subclasses inverts the dependency the hierarchy exists to establish."
+        },
+        {
+            "decision": "Route every stored moment through StoredTimestamp as UTC at microsecond precision.",
+            "rationale": "The driver's binding dropped the reported offset and truncated to seconds, making one instant indistinguishable from another and leaving ordering, comparison, and point-in-time reconstruction quietly wrong."
+        },
+        {
+            "decision": "Keep the source's reported offset in the canonical document rather than in the column.",
+            "rationale": "Columns exist to filter and order and must be uniformly comparable; the record of what a source said belongs to the document retrieval hydrates from."
         }
     ],
     "open_questions": [
@@ -229,7 +245,8 @@
         "Should SnapshotObjectReference take a storage-locator adapter rather than ObjectStorageSnapshotReference and DatabaseSnapshotReference subclasses, for the same reason?",
         "The HistoricalEvent design note lists ClaudeHistoricalEvent as a direct subclass of the abstract, but the manifesto requires Claude types to inherit through AiModelHistoricalEvent. Confirm the nesting before MME-2448.",
         "The HistoricalRelationshipAssertion design note names confidence in its purpose but omits HasConfidence from its required concerns. Confirm which is intended, since it also settles the open confidence question on HistoricalAssertion.",
-        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package."
+        "MME-2550 asks for round-trip fixtures sourced through Aleph adapters, but those adapters are MME-2549 in a different package. The Funes-side round trip is covered; the shared Aleph-to-Funes conformance fixtures remain blocked on that package.",
+        "Rows written before the 2026_09_02_010000 precision migration lost their reported offsets and sub-second precision. Is a backfill or a data-quality marker wanted for existing history, or is accepting the earlier fidelity acceptable?"
     ],
     "constraints": [
         "Observations and extraction results have no update operation.",
@@ -283,7 +300,10 @@
         "The assertion store never mutates or deletes; a withdrawal is a tombstone and erasure is a separate concern.",
         "A tombstone requires a reason and preserves the withdrawing authorization context and time.",
         "Assertion retrieval never crosses a tenant boundary and never distinguishes another tenant's evidence from absent evidence.",
-        "Valid-time reconstruction over an effective interval is not the assertion store's concern; it reconstructs by transaction time only."
+        "Valid-time reconstruction over an effective interval is not the assertion store's concern; it reconstructs by transaction time only.",
+        "No Sql store binds a raw date object or value to a timestamp column; every write goes through StoredTimestamp.",
+        "Stored timestamps are UTC at microsecond precision and are read back as UTC, never in the ambient timezone.",
+        "A caller-supplied timestamp string that is not a usable moment is rejected rather than stored."
     ],
     "glossary": {
         "source": "An external origin identified by an opaque stable reference.",
@@ -332,7 +352,8 @@
         "one_axis_rule": "The rule that an inheritance chain partitions exactly one axis and a second independent axis belongs in composition or an adapter.",
         "assertion_disposition": "Whether an append stored a first assertion or matched a duplicate; there is no changed case, because assertions are immutable.",
         "assertion_tombstone": "An append-only record withdrawing an assertion from the live view while preserving the claim, the withdrawing context, the time, and the reason.",
-        "transaction_time_reconstruction": "Answering what the store knew at a past moment by taking the latest assertion recorded at or before it."
+        "transaction_time_reconstruction": "Answering what the store knew at a past moment by taking the latest assertion recorded at or before it.",
+        "stored_timestamp": "The UTC, microsecond-precision column format for a moment, and the class that is the single authority for writing and reading it."
     },
     "features": {
         "MVP": ["FUNES-002", "FUNES-006", "FUNES-007", "FUNES-008", "FUNES-009"],
@@ -362,7 +383,8 @@
         "add_assertion_subclass": ["confirm the design source lists the subclass and what shared semantics it adds", "extend an abstract parent, never a concrete sibling", "fix the assertion type in the class rather than accepting it as a value", "implement fromArray through the shared decodeState helper with the class's own type", "run the shared substitution suite so behavior matches every sibling"],
         "add_subclass_layer": ["name the axis the proposed layer partitions", "name the axis the existing layers partition", "stop if they differ and put the second axis in composition or an acquisition adapter", "confirm the design source lists the layer and what shared semantics it adds", "record the call as a decision and log a Linear open question when it departs from ticket acceptance criteria"],
         "append_historical_assertion": ["reject an assertion whose tenant is not the caller's", "return the stored assertion when its fingerprint is already held", "reject reuse of one identity for a different claim", "insert the canonical document with UTC microsecond index columns", "return an explicit first or duplicate disposition"],
-        "withdraw_historical_assertion": ["require a reason", "resolve the assertion within the caller's tenant or refuse", "return the original withdrawal when one already exists", "append the tombstone with its authorization context and time", "leave the assertion row intact for audit"]
+        "withdraw_historical_assertion": ["require a reason", "resolve the assertion within the caller's tenant or refuse", "return the original withdrawal when one already exists", "append the tombstone with its authorization context and time", "leave the assertion row intact for audit"],
+        "store_a_moment": ["normalize the moment to UTC at microsecond precision through StoredTimestamp", "bind the formatted string rather than a date object", "keep the source's reported offset in the canonical document", "read the column back as UTC, never in the ambient timezone"]
     },
     "content_opportunities": [
         {

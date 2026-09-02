@@ -226,3 +226,38 @@ canonical document, which is what retrieval hydrates from.
 
 The type-to-class map for decoding lives in `HistoricalAssertionCodec`, not on the base class. A base
 class that knows its own subclasses inverts the dependency the hierarchy exists to establish.
+
+## D-018 — One authority formats every stored moment, as UTC at microsecond precision
+
+`StoredTimestamp` owns how a moment is written to and read from a Funes column. Stores bind its
+output, never a date object.
+
+The driver's own binding formatted values in whatever timezone they arrived in and truncated to whole
+seconds. Truncation alone discards ordering this package promises to keep. Dropping the offset was
+the more serious half: a source reporting noon at `+02:00` and one reporting noon at UTC are instants
+two hours apart, and both were stored as bare wall-clock text, so they became indistinguishable from
+two instants two hours apart the other way. Reads then parsed that text in the process's ambient
+timezone, so the recovered instant depended on where the code happened to run. Ordering, comparison,
+and point-in-time reconstruction were all quietly wrong.
+
+Three regression tests pin the behaviour through the real store: microseconds survive, one instant
+reported through two offsets comes back as one instant, and a timeline orders by instant rather than
+by reported wall clock. All three failed before the fix.
+
+Normalizing to UTC keeps columns lexicographically comparable across source offsets, which is what
+lets an index range-scan a timeline. The offset a source reported is not lost; it survives in the
+canonical document or value object that retrieval hydrates from. These columns filter and order; they
+are not the record of what a source said.
+
+`2026_09_02_010000_widen_funes_timestamp_precision` raises all twenty-three existing timestamp
+columns to precision 6. SQLite stores them as text and was unaffected by precision alone, which is
+why the earlier column change did not fix anything on its own; MySQL and PostgreSQL would round on
+insert. Rows written before this migration keep whatever fidelity they were stored with — the lost
+offsets are not recoverable, and no attempt is made to guess them.
+
+`HistoricalRelationDraft` carries `occurredAt` as a raw string that was bound verbatim, inheriting the
+same disease with no normalization at all. It now goes through `StoredTimestamp::normalize()`, which
+rejects a value that is not a usable moment rather than storing a column that cannot be compared.
+
+A test asserts no `Sql*` store binds a raw date or value to a `*_at` column, so the driver cannot
+quietly reintroduce the truncation.

@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
 use Sifrious\Funes\Identity\IdentityRegistry;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\Funes\Value\StableEntity;
 use stdClass;
 
@@ -28,7 +29,7 @@ final readonly class SqlHistoricalAppender implements HistoricalAppender
 
                 return;
             }
-            $appendId = $this->connection->table('funes_graph_appends')->insertGetId(['event_id' => $eventId, 'event_fingerprint' => $append->event->fingerprint(), 'append_fingerprint' => $fingerprint, 'authorization_context' => json_encode($append->authorization->authorizationContext(), JSON_THROW_ON_ERROR), 'appended_at' => new DateTimeImmutable]);
+            $appendId = $this->connection->table('funes_graph_appends')->insertGetId(['event_id' => $eventId, 'event_fingerprint' => $append->event->fingerprint(), 'append_fingerprint' => $fingerprint, 'authorization_context' => json_encode($append->authorization->authorizationContext(), JSON_THROW_ON_ERROR), 'appended_at' => StoredTimestamp::format(new DateTimeImmutable)]);
             $entities = [];
             foreach ($append->entities as $draft) {
                 if (isset($entities[$draft->key])) {
@@ -46,7 +47,7 @@ final readonly class SqlHistoricalAppender implements HistoricalAppender
                 $object = $entities[$relation->objectKey] ?? throw new HistoricalAppendConflict("Unknown relation object [{$relation->objectKey}].");
                 $fact = $this->relationFingerprint($relation, $subject, $object);
                 $relationId = (string) Str::ulid();
-                $inserted = $this->connection->table('funes_entity_relations')->insertOrIgnore(['id' => $relationId, 'subject_entity_id' => substr($subject->reference->id, 6), 'predicate' => $relation->predicate, 'object_entity_id' => substr($object->reference->id, 6), 'assertion_type' => $relation->assertionType->value, 'source_reference' => $relation->sourceReference, 'confidence' => $relation->confidence, 'occurred_at' => $relation->occurredAt, 'fingerprint' => $fact, 'recorded_at' => new DateTimeImmutable]);
+                $inserted = $this->connection->table('funes_entity_relations')->insertOrIgnore(['id' => $relationId, 'subject_entity_id' => substr($subject->reference->id, 6), 'predicate' => $relation->predicate, 'object_entity_id' => substr($object->reference->id, 6), 'assertion_type' => $relation->assertionType->value, 'source_reference' => $relation->sourceReference, 'confidence' => $relation->confidence, 'occurred_at' => StoredTimestamp::normalize($relation->occurredAt), 'fingerprint' => $fact, 'recorded_at' => StoredTimestamp::format(new DateTimeImmutable)]);
                 if (! $inserted) {
                     $relationId = (string) $this->connection->table('funes_entity_relations')->where('fingerprint', $fact)->value('id');
                 }

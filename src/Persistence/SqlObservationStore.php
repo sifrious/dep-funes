@@ -15,6 +15,7 @@ use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 use Sifrious\Funes\Relationship\HistoricalRelationshipType;
 use Sifrious\Funes\Relationship\RelationshipDeclaration;
+use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
@@ -57,7 +58,7 @@ final class SqlObservationStore implements ObservationStore
                 'hash' => $payloadHash,
                 'contents' => $draft->payload,
                 'byte_size' => strlen($draft->payload),
-                'created_at' => $now,
+                'created_at' => StoredTimestamp::format($now),
             ]);
 
             $id = (string) Str::ulid();
@@ -69,8 +70,8 @@ final class SqlObservationStore implements ObservationStore
                 'content_type' => $draft->contentType,
                 'fingerprint' => $fingerprint,
                 'metadata' => '[]',
-                'observed_at' => $draft->observedAt,
-                'ingested_at' => $now,
+                'observed_at' => StoredTimestamp::format($draft->observedAt),
+                'ingested_at' => StoredTimestamp::format($now),
             ]);
 
             $row = $this->observationRow($resourceId, $payloadHash);
@@ -180,7 +181,7 @@ final class SqlObservationStore implements ObservationStore
                 'result' => $result,
                 'failure' => $draft->failure,
                 'fingerprint' => $fingerprint,
-                'recorded_at' => $now,
+                'recorded_at' => StoredTimestamp::format($now),
             ]);
 
             $row = $this->connection->table('funes_extractions')
@@ -209,7 +210,7 @@ final class SqlObservationStore implements ObservationStore
             'id' => (string) Str::ulid(),
             'reference' => $reference,
             'name' => $name,
-            'created_at' => new DateTimeImmutable,
+            'created_at' => StoredTimestamp::format(new DateTimeImmutable),
         ]);
 
         return (string) $this->connection->table('funes_sources')->where('reference', $reference)->value('id');
@@ -223,7 +224,7 @@ final class SqlObservationStore implements ObservationStore
             'source_id' => $sourceId,
             'canonical_reference' => $reference,
             'reference_hash' => $referenceHash,
-            'created_at' => new DateTimeImmutable,
+            'created_at' => StoredTimestamp::format(new DateTimeImmutable),
         ]);
 
         return (string) $this->connection->table('funes_resources')
@@ -246,7 +247,7 @@ final class SqlObservationStore implements ObservationStore
                 'parent_resource_id' => $parentId,
                 'resource_id' => $resourceId,
                 'relationship' => $discovery->relationship,
-                'created_at' => $now,
+                'created_at' => StoredTimestamp::format($now),
             ]);
         }
     }
@@ -278,9 +279,9 @@ final class SqlObservationStore implements ObservationStore
             'producer_reference' => $draft->producerReference,
             'producer_name' => $draft->producerName,
             'ingestion_run_reference' => $draft->ingestionRunReference,
-            'occurred_at' => $draft->occurredAt,
-            'observed_at' => $draft->observedAt,
-            'recorded_at' => $recordedAt,
+            'occurred_at' => StoredTimestamp::format($draft->occurredAt),
+            'observed_at' => StoredTimestamp::format($draft->observedAt),
+            'recorded_at' => StoredTimestamp::format($recordedAt),
             'transformation_lineage' => $lineage,
             'fingerprint' => $fingerprint,
         ]);
@@ -323,7 +324,7 @@ final class SqlObservationStore implements ObservationStore
                 'schema_version' => $item->schemaVersion,
                 'attributes' => $attributes,
                 'fingerprint' => $fingerprint,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
         }
     }
@@ -358,7 +359,7 @@ final class SqlObservationStore implements ObservationStore
                 'text' => $text->text,
                 'text_hash' => $textHash,
                 'fingerprint' => $fingerprint,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
         }
     }
@@ -387,7 +388,7 @@ final class SqlObservationStore implements ObservationStore
                 'entity_reference' => $reference,
                 'entity_reference_key' => $association->entity->key(),
                 'fingerprint' => $fingerprint,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
 
             $associationId = $this->connection->table('funes_entity_associations')
@@ -402,7 +403,7 @@ final class SqlObservationStore implements ObservationStore
                 'id' => (string) Str::ulid(),
                 'association_id' => $associationId,
                 'provenance_id' => $provenanceId,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
         }
     }
@@ -436,7 +437,7 @@ final class SqlObservationStore implements ObservationStore
                 'target_reference' => $this->json($relationship->target->toArray()),
                 'target_reference_key' => $relationship->target->key(),
                 'fingerprint' => $fingerprint,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
 
             $relationshipId = $this->connection->table('funes_historical_relationships')
@@ -451,7 +452,7 @@ final class SqlObservationStore implements ObservationStore
                 'id' => (string) Str::ulid(),
                 'relationship_id' => $relationshipId,
                 'provenance_id' => $provenanceId,
-                'recorded_at' => $recordedAt,
+                'recorded_at' => StoredTimestamp::format($recordedAt),
             ]);
 
             if ($relationship->declaration !== null) {
@@ -467,7 +468,7 @@ final class SqlObservationStore implements ObservationStore
                         $relationship->declaration->sourceLocator,
                         $relationship->declaration->declaredValue,
                     ])),
-                    'recorded_at' => $recordedAt,
+                    'recorded_at' => StoredTimestamp::format($recordedAt),
                 ]);
             }
         }
@@ -484,7 +485,7 @@ final class SqlObservationStore implements ObservationStore
             'producer_reference' => $producerContext->producer->reference,
             'producer_name' => $producerContext->producer->name,
             'ingestion_run_reference' => $producerContext->ingestionRun->reference,
-            'recorded_at' => $recordedAt,
+            'recorded_at' => StoredTimestamp::format($recordedAt),
         ]);
     }
 
@@ -541,9 +542,9 @@ final class SqlObservationStore implements ObservationStore
                 ),
                 new Producer((string) $item->producer_reference, (string) $item->producer_name),
                 new IngestionRun((string) $item->ingestion_run_reference),
-                $item->occurred_at === null ? null : new DateTimeImmutable((string) $item->occurred_at),
-                new DateTimeImmutable((string) $item->observed_at),
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::parse($item->occurred_at),
+                StoredTimestamp::require($item->observed_at),
+                StoredTimestamp::require($item->recorded_at),
                 $this->decode((string) $item->transformation_lineage),
             ))
             ->all());
@@ -558,7 +559,7 @@ final class SqlObservationStore implements ObservationStore
                 (string) $item->schema_version,
                 $this->decode((string) $item->attributes),
                 (string) $item->provenance_id,
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::require($item->recorded_at),
             ))
             ->all());
         $legacyMetadata = $this->decode((string) $row->metadata);
@@ -570,7 +571,7 @@ final class SqlObservationStore implements ObservationStore
                 '1',
                 $legacyMetadata,
                 $provenance[0]->id ?? null,
-                new DateTimeImmutable((string) $row->ingested_at),
+                StoredTimestamp::require($row->ingested_at),
             ));
         }
         $texts = array_values($this->connection->table('funes_observation_text')
@@ -587,7 +588,7 @@ final class SqlObservationStore implements ObservationStore
                 (string) $item->text,
                 (string) $item->text_hash,
                 $item->language === null ? null : (string) $item->language,
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::require($item->recorded_at),
             ))
             ->all());
 
@@ -601,7 +602,7 @@ final class SqlObservationStore implements ObservationStore
                 (string) $payload->contents,
                 (string) $row->payload_hash,
                 null,
-                new DateTimeImmutable((string) $row->ingested_at),
+                StoredTimestamp::require($row->ingested_at),
             ));
         }
         $associations = array_values($this->connection->table('funes_entity_associations')
@@ -624,8 +625,8 @@ final class SqlObservationStore implements ObservationStore
             (string) $source->reference,
             (string) $source->name,
             (string) $resource->canonical_reference,
-            new DateTimeImmutable((string) $row->observed_at),
-            new DateTimeImmutable((string) $row->ingested_at),
+            StoredTimestamp::require($row->observed_at),
+            StoredTimestamp::require($row->ingested_at),
             (string) $payload->contents,
             (string) $row->payload_hash,
             (string) $row->content_type,
@@ -655,7 +656,7 @@ final class SqlObservationStore implements ObservationStore
             EntityAssociationRole::from((string) $row->role),
             CrossPackageReference::fromArray($reference),
             $provenanceIds,
-            new DateTimeImmutable((string) $row->recorded_at),
+            StoredTimestamp::require($row->recorded_at),
         );
     }
 
@@ -679,7 +680,7 @@ final class SqlObservationStore implements ObservationStore
                 (string) $item->provenance_id,
                 (string) $item->source_locator,
                 (string) $item->declared_value,
-                new DateTimeImmutable((string) $item->recorded_at),
+                StoredTimestamp::require($item->recorded_at),
             ))
             ->all());
 
@@ -690,7 +691,7 @@ final class SqlObservationStore implements ObservationStore
             CrossPackageReference::fromArray($target),
             $provenanceIds,
             $declarations,
-            new DateTimeImmutable((string) $row->recorded_at),
+            StoredTimestamp::require($row->recorded_at),
         );
     }
 
@@ -715,7 +716,7 @@ final class SqlObservationStore implements ObservationStore
             $producerContexts,
             $row->result === null ? null : $this->decode((string) $row->result),
             $row->failure === null ? null : (string) $row->failure,
-            new DateTimeImmutable((string) $row->recorded_at),
+            StoredTimestamp::require($row->recorded_at),
         );
     }
 

@@ -184,10 +184,32 @@ authorization context and time, hides the claim from the live view, and leaves t
 intact. Repeating a tombstone preserves the original withdrawal rather than restamping it. Destroying
 the underlying material is erasure, which is a separate concern.
 
-Timestamp columns are UTC index values at microsecond precision, written explicitly because the
-database driver's own binding format truncates to whole seconds — which would round away history the
-canonical document preserves. Retrieval hydrates from the document, so the offset a source reported
-survives; the columns exist to filter and order.
+Timestamp columns are written through `StoredTimestamp`, described below.
+
+## How a moment is stored
+
+`Sifrious\\Funes\\Time\\StoredTimestamp` is the single authority for writing a moment to a Funes
+column and reading it back.
+
+A database driver's own date binding formats a value in whatever timezone it arrives in, and to whole
+seconds. Both losses matter here. Truncating microseconds discards ordering this package promises to
+preserve. Dropping the offset is worse than imprecise: a source reporting noon at `+02:00` and one
+reporting noon at UTC describe instants two hours apart, and stored as bare wall-clock text they
+become indistinguishable from two instants two hours apart in the other direction. Comparison,
+ordering, and every point-in-time reconstruction built on them are then quietly wrong.
+
+So a stored moment is normalized to UTC and written at microsecond precision, which makes the text
+lexicographically comparable no matter what offset a source reported — what lets an index range-scan a
+timeline. The offset a source actually used is not discarded: it survives in the canonical document
+or value object that retrieval hydrates from. These columns exist to filter and order, not to be the
+record of what a source said.
+
+Drafts that carry a moment as text go through `StoredTimestamp::normalize()`, which parses and
+reformats. A value that is not a usable moment fails there rather than becoming a column that cannot
+be compared.
+
+A test asserts that no `Sql*` store binds a raw date or value to a `*_at` column, so the driver
+cannot quietly reintroduce the truncation.
 
 ## Cross-package events and delivery
 
