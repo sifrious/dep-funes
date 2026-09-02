@@ -167,3 +167,29 @@ subclasses, because for an event the acquisition runtime is the shared semantics
 
 A test walks `src/Assertion` and fails on any concrete class extending another concrete class, so a
 family layer added later cannot be bypassed.
+
+## D-016 — An inheritance chain partitions exactly one axis
+
+D-015 generalizes. Before any subclass layer is added, the axis it partitions and the axis the
+existing layers partition are both named. If they differ, the layer is not added: beneath one sibling
+it is wrong for the others, and above them it collides with the invariant those siblings encode. The
+second axis goes into composition or an acquisition adapter.
+
+The manifesto's `Contract` ← `Abstract` ← `AiModel` ← `Claude` shape is the template for objects
+whose subclasses partition by acquisition family, and the Linear ticket bodies restate it for every
+object regardless of fit. It is not a shape every object must take. `docs/concerns.md` names the axis
+each substrate object's subclasses partition.
+
+Two consequences beyond `HistoricalAssertion`:
+
+`HistoricalRelationshipAssertion` partitions the same epistemic axis — observed, declared, inferred —
+so it takes no provider family either, for the reasons in D-015.
+
+`EventAcceptance` and `SnapshotObjectReference` list subclasses that partition by storage mechanism:
+`SqlEventAcceptance`, `ObjectStorageSnapshotReference`, `DatabaseSnapshotReference`. Storage is not a
+domain axis, and each object's own note carries the invariant that persistence is supplied through
+interfaces and adapters rather than inherited into the domain ABC. The design source contradicts
+itself there. This package already resolves it correctly elsewhere — `SqlObservationStore`,
+`SqlAcceptanceGateway`, and `SqlHistoricalAppender` all implement an interface rather than extend a
+domain class — so those two objects should take a repository interface, not a subclass. Recorded as
+an open question rather than acted on, because it changes tickets that are not yet in progress.
