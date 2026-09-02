@@ -59,7 +59,7 @@ it('exposes provider-neutral identity, subject, claim, and temporal coordinates'
 
     expect($assertion)->toBeInstanceOf(HistoricalAssertionContract::class)
         ->and($assertion)->toBeInstanceOf(AbstractHistoricalAssertion::class)
-        ->and($assertion->assertionId())->toBe('assertion:1')
+        ->and($assertion->stableIdentity())->toBe('assertion:1')
         ->and($assertion->assertionType())->toBe(AssertionType::Observed)
         ->and($assertion->subject()->equals(assertionSubject()))->toBeTrue()
         ->and($assertion->predicate())->toBe('title')
@@ -182,7 +182,7 @@ it('fingerprints a different claim differently', function (): void {
 it('separates an inference from an observation of the same claim', function (): void {
     $observed = observedAssertion();
     $inferred = new FixtureInferredAssertion(
-        $observed->assertionId(),
+        $observed->stableIdentity(),
         assertionSubject(),
         $observed->predicate(),
         $observed->value(),

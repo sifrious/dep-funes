@@ -140,6 +140,17 @@ fingerprints differently.
 implements its own `fromArray()` over the shared `decodeState()` helper, so no subclass reinterprets
 the wire format and a serialized assertion cannot be decoded by a class of a different type.
 
+The contract is composed from five capability interfaces in `Sifrious\Funes\Concern` —
+`HasStableIdentity`, `HasProvenance`, `HasTemporalCoordinates`, `HasTenantScope`, and `HasEvidence` —
+which the other historical substrate objects share rather than redeclare. Concerns never declare
+state, so composition cannot duplicate what an object already owns; where a mechanic genuinely
+repeats, such as the chronology rule and the temporal wire format, it is supplied by a stateless
+trait alongside the interface.
+
+Concerns deliberately not composed are recorded with their reasons and their real owners in
+[docs/concerns.md](docs/concerns.md), alongside the invariant-ownership table. A missing concern and
+a deliberately excluded one are otherwise indistinguishable after the fact.
+
 ## Cross-package events and delivery
 
 Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract

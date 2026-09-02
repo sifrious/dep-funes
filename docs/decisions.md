@@ -118,3 +118,29 @@ match the decoding class, and each subclass writes its own `fromArray()`.
 The fingerprint covers the durable fact and excludes the assertion's own identity and its observation
 and recording times, so a re-encounter of the same claim deduplicates while a different tenant, value,
 or assertion type does not.
+
+## D-014 — Concerns are stateless capability interfaces, and every one is assigned explicitly
+
+The manifesto's fifteen-concern vocabulary is a register, not a menu. Each provider-neutral
+historical object records every concern as composed or as not applicable with its reason and its real
+owner, because a missing concern and a deliberately excluded one are otherwise indistinguishable
+later. `docs/concerns.md` holds that register and an invariant-ownership table in which no invariant
+is enforced in two places.
+
+`HistoricalAssertion` composes `HasStableIdentity`, `HasProvenance`, `HasTemporalCoordinates`,
+`HasTenantScope`, and `HasEvidence`. The remaining ten are excluded with named owners: provider
+identity belongs to concrete subclasses, actor and authorization context to the acceptance boundary,
+effective interval and immutable version to `HistoricalEntityVersion`, parent semantics to
+`HistoricalRelationshipAssertion`, external references to the identity registry, content hash to
+`fingerprint()` and the stored-artifact seam, and confidence to relationship drafts.
+
+Concerns are interfaces and declare no state, so composition cannot duplicate what the base class
+already owns. Shared mechanics are extracted only where they genuinely repeat: the chronology rule
+and the temporal wire format live in `SerializesTemporalCoordinates` because every historical
+substrate object needs the same three moments to compare and sort against its siblings. Everything
+else stays private to the object that uses it.
+
+`HasStableIdentity` exposes `stableIdentity()` rather than `assertionId()`. A concern shared across
+seven objects cannot name one of them. `HasSourceLocator` is not composed separately: an assertion's
+provenance always includes its source locator, and two concerns exposing the same value could
+disagree.

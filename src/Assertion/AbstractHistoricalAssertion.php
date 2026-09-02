@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use JsonException;
 use Sifrious\AuthorizationContract\TenantScope;
+use Sifrious\Funes\Concern\SerializesTemporalCoordinates;
 use Sifrious\Funes\Graph\AssertionType;
 use Sifrious\Funes\Value\SourceLocator;
 use Sifrious\ReferenceContract\CrossPackageReference;
@@ -25,6 +26,8 @@ use Sifrious\ReferenceContract\CrossPackageReference;
  */
 abstract readonly class AbstractHistoricalAssertion implements HistoricalAssertionContract
 {
+    use SerializesTemporalCoordinates;
+
     public const CONTRACT = 'sifrious.historical-assertion';
 
     public const CONTRACT_VERSION = 1;
@@ -55,13 +58,7 @@ abstract readonly class AbstractHistoricalAssertion implements HistoricalAsserti
 
         self::requireJsonEncodable($value);
 
-        if ($occurredAt !== null && $occurredAt > $observedAt) {
-            throw new InvalidArgumentException('A historical assertion cannot be observed before the fact it reports occurred.');
-        }
-
-        if ($observedAt > $recordedAt) {
-            throw new InvalidArgumentException('A historical assertion cannot be recorded before it was observed.');
-        }
+        self::requireChronology($occurredAt, $observedAt, $recordedAt, 'historical assertion');
 
         if (! is_array($evidence)) {
             throw new InvalidArgumentException('Historical assertion evidence must be a list of cross-package references.');
@@ -86,7 +83,7 @@ abstract readonly class AbstractHistoricalAssertion implements HistoricalAsserti
      */
     abstract public function assertionType(): AssertionType;
 
-    public function assertionId(): string
+    public function stableIdentity(): string
     {
         return $this->id;
     }
@@ -316,7 +313,7 @@ abstract readonly class AbstractHistoricalAssertion implements HistoricalAsserti
     /** @param array<string, mixed> $serialized */
     private static function timeValue(array $serialized, string $key): DateTimeImmutable
     {
-        return new DateTimeImmutable(self::stringValue($serialized, $key));
+        return self::parseTime(self::stringValue($serialized, $key));
     }
 
     /** @param array<string, mixed> $serialized */
@@ -328,11 +325,6 @@ abstract readonly class AbstractHistoricalAssertion implements HistoricalAsserti
         }
 
         return self::timeValue($serialized, $key);
-    }
-
-    private static function formatTime(DateTimeImmutable $time): string
-    {
-        return $time->format('Y-m-d\TH:i:s.uP');
     }
 
     private static function requireJsonEncodable(mixed $value): void
