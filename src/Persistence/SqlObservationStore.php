@@ -11,7 +11,6 @@ use JsonException;
 use Sifrious\Funes\Association\EntityAssociation;
 use Sifrious\Funes\Association\EntityAssociationDraft;
 use Sifrious\Funes\Association\EntityAssociationRole;
-use Sifrious\ReferenceContract\CrossPackageReference;
 use Sifrious\Funes\Relationship\HistoricalRelationship;
 use Sifrious\Funes\Relationship\HistoricalRelationshipDraft;
 use Sifrious\Funes\Relationship\HistoricalRelationshipType;
@@ -33,6 +32,7 @@ use Sifrious\Funes\Value\Provenance;
 use Sifrious\Funes\Value\SourceLocator;
 use Sifrious\Funes\Value\TextAssertion;
 use Sifrious\Funes\Value\TextDraft;
+use Sifrious\ReferenceContract\CrossPackageReference;
 use stdClass;
 
 final class SqlObservationStore implements ObservationStore

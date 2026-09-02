@@ -1,5 +1,9 @@
 # Funes
 
+> **License:** Copyright © 2026 Sifrious. All rights reserved. This is
+> publicly viewable proprietary software, not open-source software. See
+> [LICENSE.md](LICENSE.md).
+
 Funes is named after Ireneo Funes, the central figure in Jorge Luis Borges's *Funes the Memorious*. After an accident, Funes remembers every detail of everything he experiences. The name fits a package built to preserve history without flattening it, losing its source, or forgetting how one record relates to another.
 
 Unlike its namesake, the package is not intended to retain information indiscriminately. Its purpose is to make selected history trustworthy, structured, searchable, and useful.
@@ -166,6 +170,27 @@ Structured attributes enter as `MetadataDraft` values with a namespaced identifi
 `find()` recovers the latest immutable observation, original payload, and known provenance by source and canonical resource reference. Every provenance assertion returns its producer and stable `IngestionRun`. `get()` recovers the same representation for any historical observation by its immutable ID. Acceptance-gateway replay also resolves the accepted observation and provenance. `discoveriesTo()` resolves a discovered resource back to its parent resources and observations.
 
 `recordExtraction()` requires a `ProducerContext` containing producer identity and ingestion-run reference, then appends an idempotent success or failure identified by observation, extractor, and extractor version. Exact producer/run retries reuse the derived result and context; another run producing the same result appends context without duplicating the result. The configured database connection is read from `funes.connection`; `null` uses Laravel's default connection.
+
+## Offline sentence diagrams (small local slice)
+
+The package now exposes a compact local sentence diagram capability:
+
+- call `Sifrious\Funes\diagram($sentence)` to get `{source, grammar_graph, svg, timings, warnings, provenance}`;
+- the normal path is offline only (`provenance.mode = offline`, `provenance.llm_used = false`);
+- grammar parsing, Reed-Kellogg-ish transformation, and SVG rendering are separate adapters;
+- no English grammar theory is persisted in Funes domain tables.
+
+To preserve diagram representations through Funes history, resolve `Sifrious\Funes\Diagram\SentenceDiagramService` from the container and call `diagramAndRecord($observationId, $producerContext)`. It records `sentence-diagram` extractions with incrementing versions (`1`, `2`, ...) so re-runs append new derived records instead of overwriting source or earlier versions.
+
+### Fixture command and manual Mac timing step
+
+Run one small fixture set and print timings:
+
+`composer diagram:fixtures`
+
+This prints per-sentence `total_ms`, `parse_ms`, `transform_ms`, and `render_ms`.
+
+Manual verification on a specific Mac remains a human step using the same command above.
 
 Historical text enters as a namespaced `TextDraft` with content type, optional language, and immutable content. Retrieval returns append-only `TextAssertion` values linked to observation provenance. A textual raw payload is also exposed as `funes:source-payload`, retaining its original payload hash as text identity. Changed attached text appends without changing the observation; exact retry reuses the assertion.
 

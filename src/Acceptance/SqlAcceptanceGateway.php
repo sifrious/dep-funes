@@ -29,7 +29,7 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
             $reserved = $this->reserve($submission->idempotencyKey);
 
             if (! $reserved) {
-                return $this->resolveExisting($submission->idempotencyKey);
+                return $this->resolveExisting($submission);
             }
 
             $draft = $submission->occurredAt === null
@@ -90,19 +90,37 @@ final readonly class SqlAcceptanceGateway implements AcceptanceGateway
         ]) === 1;
     }
 
-    private function resolveExisting(string $key): AcceptanceResult
+    private function resolveExisting(Submission $submission): AcceptanceResult
     {
-        $row = $this->connection->table('funes_idempotency_keys')->where('key', $key)->first();
+        $row = $this->connection->table('funes_idempotency_keys')->where('key', $submission->idempotencyKey)->first();
 
         if ($row === null || $row->accepted_id === null) {
-            return AcceptanceResult::inFlight($key);
+            return AcceptanceResult::inFlight($submission->idempotencyKey);
+        }
+
+        $accepted = $this->observations->get((string) $row->accepted_id);
+
+        if ($accepted === null) {
+            return AcceptanceResult::rejected($submission->idempotencyKey, [
+                'The idempotency key references an accepted observation that no longer exists.',
+            ]);
+        }
+
+        $incomingPayloadHash = hash('sha256', $submission->draft->payload);
+
+        if ($accepted->payloadHash !== $incomingPayloadHash
+            || $accepted->sourceReference !== $submission->draft->sourceReference
+            || $accepted->resourceReference !== $submission->draft->resourceReference) {
+            return AcceptanceResult::rejected($submission->idempotencyKey, [
+                'The idempotency key is already bound to a different accepted submission.',
+            ]);
         }
 
         return AcceptanceResult::replayed(
-            $key,
+            $submission->idempotencyKey,
             (string) $row->accepted_type,
             (string) $row->accepted_id,
-            $this->observations->get((string) $row->accepted_id),
+            $accepted,
         );
     }
 

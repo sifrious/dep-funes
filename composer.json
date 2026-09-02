@@ -9,7 +9,7 @@
         "memory"
     ],
     "homepage": "https://github.com/sifrious/funes",
-    "license": "MIT",
+    "license": "proprietary",
     "authors": [
         {
             "name": "sifrious",
@@ -32,7 +32,10 @@
     "autoload": {
         "psr-4": {
             "Sifrious\\Funes\\": "src/"
-        }
+        },
+        "files": [
+            "src/diagram.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
@@ -42,7 +45,8 @@
     "scripts": {
         "test": "pest",
         "lint": "pint",
-        "analyse": "phpstan analyse"
+        "analyse": "phpstan analyse",
+        "diagram:fixtures": "php bin/diagram-fixtures.php"
     },
     "config": {
         "sort-packages": true,
@@ -53,7 +57,7 @@
     "repositories": [
         {
             "type": "vcs",
-            "url": "git@github.com-sifrious:sifrious/dep-reference-contract.git"
+            "url": "https://github.com/sifrious/dep-reference-contract.git"
         }
     ],
     "extra": {
