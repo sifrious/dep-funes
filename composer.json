@@ -21,6 +21,7 @@
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
         "illuminate/support": "^13.0",
+        "sifrious/authorization-contract": "dev-main",
         "sifrious/event-contract": "^1.0",
         "sifrious/reference-contract": "^1.0"
     },
@@ -29,7 +30,10 @@
         "laravel/pint": "^1.24",
         "orchestra/testbench": "^11.0",
         "pestphp/pest": "^4.0|^5.0",
-        "sifrious/harness-contract-fixtures": "^1.0"
+        "quain/core": "dev-main",
+        "sifrious/elwin": "dev-main",
+        "sifrious/harness-contract-fixtures": "^1.0",
+        "sifrious/logres": "dev-main"
     },
     "autoload": {
         "psr-4": {
@@ -61,6 +65,22 @@
             "name": "harness-contract-fixtures",
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-harness-contract-fixtures.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-authorization-contract.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-elwin.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/dep-logres.git"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/sifrious/quain.git"
         },
         {
             "type": "vcs",
