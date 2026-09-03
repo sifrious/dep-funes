@@ -33,8 +33,7 @@
         "quain/core": "dev-main",
         "sifrious/elwin": "dev-main",
         "sifrious/harness-contract-fixtures": "^1.0",
-        "sifrious/logres": "dev-main",
-        "sifrious/stacks-contract": "dev-main as 1.0.0"
+        "sifrious/logres": "0.0.7"
     },
     "autoload": {
         "psr-4": {
@@ -86,10 +85,6 @@
         {
             "type": "vcs",
             "url": "https://github.com/sifrious/dep-reference-contract.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/sifrious/dep-stacks-contract.git"
         },
         {
             "type": "vcs",
