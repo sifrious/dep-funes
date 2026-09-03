@@ -17,6 +17,7 @@ use Sifrious\Funes\Relationship\HistoricalRelationshipType;
 use Sifrious\Funes\Relationship\RelationshipDeclarationDraft;
 use Sifrious\Funes\Value\DerivationProcess;
 use Sifrious\Funes\Value\Discovery;
+use Sifrious\Funes\Value\ExtractionDisposition;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\HistoricalRecordType;
 use Sifrious\Funes\Value\IngestionRun;
@@ -437,6 +438,42 @@ it('records versioned extraction successes and failures without changing observa
         ->and($failure->succeeded())->toBeFalse()
         ->and($failure->failure)->toBe('Unsupported document')
         ->and($store->find('website:example', 'https://example.test/articles/one')?->payload)->toBe('<html>first</html>');
+});
+
+it('retrieves typed extracted representations and distinguishes every outcome', function (): void {
+    $store = app(ObservationStore::class);
+    $observation = $store->accept(observationDraft())->observation;
+    $context = new ProducerContext(new Producer('kilgore:extractor/article', 'Kilgore article extractor'), new IngestionRun('kilgore:run/typed'));
+
+    $success = $store->recordExtraction(new ExtractionDraft(
+        $observation->id,
+        'article-parser',
+        '1',
+        $context,
+        ['title' => 'First'],
+        representationType: 'article',
+    ));
+    $unsupported = $store->recordExtraction(new ExtractionDraft(
+        $observation->id,
+        'table-parser',
+        '1',
+        $context,
+        failure: 'No tables were present.',
+        representationType: 'table',
+        disposition: ExtractionDisposition::Unsupported,
+        failureCode: 'document_has_no_tables',
+        failureDetails: ['media_type' => 'text/html'],
+    ));
+
+    expect($success->inputHash)->toBe(hash('sha256', '<html>first</html>'))
+        ->and($success->disposition)->toBe(ExtractionDisposition::Succeeded)
+        ->and($unsupported->disposition)->toBe(ExtractionDisposition::Unsupported)
+        ->and($unsupported->failureCode)->toBe('document_has_no_tables')
+        ->and($unsupported->failureDetails)->toBe(['media_type' => 'text/html'])
+        ->and($store->extraction($observation->id, 'table', 'table-parser', '1')?->id)->toBe($unsupported->id)
+        ->and($store->extraction($observation->id, 'missing', 'parser', '1'))->toBeNull()
+        ->and($store->extractions($observation->id))->toHaveCount(2)
+        ->and($store->get($observation->id)?->payload)->toBe('<html>first</html>');
 });
 
 it('prevents a derived result from entering observation acceptance', function (): void {
