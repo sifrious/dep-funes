@@ -38,4 +38,9 @@ interface ObservationStore
     public function discoveriesTo(string $sourceReference, string $resourceReference): array;
 
     public function recordExtraction(ExtractionDraft $draft): ExtractionResult;
+
+    public function extraction(string $observationId, string $representationType, string $extractor, string $version): ?ExtractionResult;
+
+    /** @return list<ExtractionResult> */
+    public function extractions(string $observationId, ?string $representationType = null): array;
 }

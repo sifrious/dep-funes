@@ -291,3 +291,15 @@ by recency, then assertion id, then field path so pagination cannot drop or repe
 trades relevance sophistication for behavior that is identical on every supported driver. A
 corpus that outgrows it replaces the implementation behind the `FullTextSearch` interface without
 moving the contract.
+
+## D-020 — Extracted representations have typed outcomes and raw input identity
+
+An extracted representation is identified by observation, representation type, extractor, and
+extractor version. Its input hash comes from the observation's immutable payload, so callers cannot
+claim that an extractor read different bytes. Outcomes are succeeded, unsupported, or failed.
+Failures retain a stable code, a readable message, and structured details.
+
+Retrieval returns one named version or every representation for an observation in deterministic
+order. Absence is `null`, not a stored failure. Repeating the same extraction is idempotent, while a
+different outcome under the same identity is a conflict. None of these records change or replace the
+raw observation.

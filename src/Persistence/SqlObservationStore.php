@@ -19,6 +19,7 @@ use Sifrious\Funes\Time\StoredTimestamp;
 use Sifrious\Funes\Value\AcceptedObservation;
 use Sifrious\Funes\Value\Discovery;
 use Sifrious\Funes\Value\DiscoveryProvenance;
+use Sifrious\Funes\Value\ExtractionDisposition;
 use Sifrious\Funes\Value\ExtractionDraft;
 use Sifrious\Funes\Value\ExtractionResult;
 use Sifrious\Funes\Value\IngestionRun;
@@ -168,24 +169,31 @@ final class SqlObservationStore implements ObservationStore
                 throw new ObservationNotFound("Observation [{$draft->observationId}] does not exist.");
             }
 
+            $inputHash = (string) $this->connection->table('funes_observations')->where('id', $draft->observationId)->value('payload_hash');
             $result = $draft->result === null ? null : $this->json($draft->result);
-            $fingerprint = hash('sha256', $this->json([$result, $draft->failure]));
+            $failureDetails = $draft->failure === null ? null : $this->json($draft->failureDetails);
+            $fingerprint = hash('sha256', $this->json([$inputHash, $result, $draft->failure, $draft->resolvedFailureCode(), $failureDetails]));
             $id = (string) Str::ulid();
             $now = new DateTimeImmutable;
             $inserted = $this->connection->table('funes_extractions')->insertOrIgnore([
                 'id' => $id,
                 'observation_id' => $draft->observationId,
+                'representation_type' => $draft->resolvedRepresentationType(),
                 'extractor' => $draft->extractor,
                 'version' => $draft->version,
-                'status' => $draft->failure === null ? 'succeeded' : 'failed',
+                'input_hash' => $inputHash,
+                'status' => $draft->resolvedDisposition()->value,
                 'result' => $result,
                 'failure' => $draft->failure,
+                'failure_code' => $draft->resolvedFailureCode(),
+                'failure_details' => $failureDetails,
                 'fingerprint' => $fingerprint,
                 'recorded_at' => StoredTimestamp::format($now),
             ]);
 
             $row = $this->connection->table('funes_extractions')
                 ->where('observation_id', $draft->observationId)
+                ->where('representation_type', $draft->resolvedRepresentationType())
                 ->where('extractor', $draft->extractor)
                 ->where('version', $draft->version)
                 ->first();
@@ -202,6 +210,29 @@ final class SqlObservationStore implements ObservationStore
 
             return $this->hydrateExtraction($row);
         }, 3);
+    }
+
+    public function extraction(string $observationId, string $representationType, string $extractor, string $version): ?ExtractionResult
+    {
+        $row = $this->connection->table('funes_extractions')
+            ->where('observation_id', $observationId)
+            ->where('representation_type', $representationType)
+            ->where('extractor', $extractor)
+            ->where('version', $version)
+            ->first();
+
+        return $row instanceof stdClass ? $this->hydrateExtraction($row) : null;
+    }
+
+    public function extractions(string $observationId, ?string $representationType = null): array
+    {
+        $query = $this->connection->table('funes_extractions')->where('observation_id', $observationId);
+        if ($representationType !== null) {
+            $query->where('representation_type', $representationType);
+        }
+
+        return array_values($query->orderBy('representation_type')->orderBy('extractor')->orderBy('version')->get()
+            ->map(fn (stdClass $row): ExtractionResult => $this->hydrateExtraction($row))->all());
     }
 
     private function sourceId(string $reference, string $name): string
@@ -711,11 +742,16 @@ final class SqlObservationStore implements ObservationStore
         return new ExtractionResult(
             (string) $row->id,
             (string) $row->observation_id,
+            (string) $row->representation_type,
             (string) $row->extractor,
             (string) $row->version,
+            (string) $row->input_hash,
+            ExtractionDisposition::from((string) $row->status),
             $producerContexts,
             $row->result === null ? null : $this->decode((string) $row->result),
             $row->failure === null ? null : (string) $row->failure,
+            $row->failure_code === null ? null : (string) $row->failure_code,
+            $row->failure_details === null ? [] : $this->decode((string) $row->failure_details),
             StoredTimestamp::require($row->recorded_at),
         );
     }
