@@ -12,6 +12,8 @@ use Sifrious\Funes\Acceptance\AcceptanceBacklog;
 use Sifrious\Funes\Acceptance\AcceptanceGateway;
 use Sifrious\Funes\Acceptance\SqlAcceptanceBacklog;
 use Sifrious\Funes\Acceptance\SqlAcceptanceGateway;
+use Sifrious\Funes\Assertion\HistoricalAssertionStore;
+use Sifrious\Funes\Assertion\SqlHistoricalAssertionStore;
 use Sifrious\Funes\Diagram\GrammarParser;
 use Sifrious\Funes\Diagram\GrammarTransformer;
 use Sifrious\Funes\Diagram\LocalCompactEnglishParser;
@@ -25,6 +27,8 @@ use Sifrious\Funes\Identity\IdentityRegistry;
 use Sifrious\Funes\Identity\SqlIdentityRegistry;
 use Sifrious\Funes\Persistence\ObservationStore;
 use Sifrious\Funes\Persistence\SqlObservationStore;
+use Sifrious\Funes\Search\FullTextSearch;
+use Sifrious\Funes\Search\SqlFullTextSearch;
 use Sifrious\Funes\Text\SqlTextProjection;
 use Sifrious\Funes\Text\TextProjection;
 
@@ -48,6 +52,10 @@ class FunesServiceProvider extends ServiceProvider
             $app->make(ObservationStore::class),
         ));
 
+        $this->app->singleton(HistoricalAssertionStore::class, fn ($app): HistoricalAssertionStore => new SqlHistoricalAssertionStore(
+            $this->connection($app),
+        ));
+
         $this->app->singleton(IdentityRegistry::class, fn ($app): IdentityRegistry => new SqlIdentityRegistry(
             $this->connection($app),
         ));
@@ -58,6 +66,10 @@ class FunesServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(TextProjection::class, fn ($app): TextProjection => new SqlTextProjection(
+            $this->connection($app),
+        ));
+
+        $this->app->singleton(FullTextSearch::class, fn ($app): FullTextSearch => new SqlFullTextSearch(
             $this->connection($app),
         ));
 

@@ -33,7 +33,7 @@
         "quain/core": "dev-main",
         "sifrious/elwin": "dev-main",
         "sifrious/harness-contract-fixtures": "^1.0",
-        "sifrious/logres": "dev-main"
+        "sifrious/logres": "0.0.7"
     },
     "autoload": {
         "psr-4": {

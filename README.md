@@ -112,6 +112,105 @@ The stronger `caused-by` and `child-of` types require a `RelationshipDeclaration
 
 Exact retries reuse the declaration. A later source encounter appends another declaration assertion with its provenance while retaining one relationship fact. Direction is explicit: the source observation was caused by, or is a child of, the target historical event reference.
 
+## Historical assertions
+
+`HistoricalAssertionContract` is the provider-neutral contract for a single durable claim: a durable
+subject reference, a stable lowercase predicate, a JSON-encodable value, and the evidentiary and
+temporal circumstances under which the claim was made. Consumers depend on it without knowing which
+model, IDE, source-control host, or storage vendor supplied the material.
+
+`AbstractHistoricalAssertion` is the only direct parent for provider-family abstractions. It owns
+canonical identity, invariants, temporal semantics, and the versioned serialization boundary;
+subclasses supply their assertion type and provider mapping and never redefine those semantics.
+Instances are readonly, so a corrected claim becomes a new assertion related to the earlier one
+rather than an edit to it.
+
+The assertion type is fixed by the subclass rather than passed in, which is what keeps the taxonomy
+meaningful: an observation cannot silently become an inference. Inferred assertions require
+non-empty evidence. Occurrence, observation, and recording times stay distinct and must be
+chronological, and occurrence may be unknown.
+
+`fingerprint()` digests the durable fact — type, subject, predicate, value, source locator,
+occurrence, and tenant — and deliberately excludes the assertion's own identity and its observation
+and recording times. Two encounters of the same claim therefore share a fingerprint, which is what
+makes repeated ingestion idempotent, while an inference, a different tenant, or a different value
+fingerprints differently.
+
+`toArray()` emits a `sifrious.historical-assertion` document at contract version 1. Each subclass
+implements its own `fromArray()` over the shared `decodeState()` helper, so no subclass reinterprets
+the wire format and a serialized assertion cannot be decoded by a class of a different type.
+
+The contract is composed from five capability interfaces in `Sifrious\Funes\Concern` —
+`HasStableIdentity`, `HasProvenance`, `HasTemporalCoordinates`, `HasTenantScope`, and `HasEvidence` —
+which the other historical substrate objects share rather than redeclare. Concerns never declare
+state, so composition cannot duplicate what an object already owns; where a mechanic genuinely
+repeats, such as the chronology rule and the temporal wire format, it is supplied by a stateless
+trait alongside the interface.
+
+Concerns deliberately not composed are recorded with their reasons and their real owners in
+[docs/concerns.md](docs/concerns.md), alongside the invariant-ownership table. A missing concern and
+a deliberately excluded one are otherwise indistinguishable after the fact.
+
+Three concrete classes complete the assertion taxonomy: `ObservedHistoricalAssertion` for what a
+source showed, `DeclaredHistoricalAssertion` for what a source explicitly stated, and
+`InferredHistoricalAssertion` for what a later process reasoned its way to. Each fixes one type and
+adds nothing else, so the three are freely substitutable and produce the same observable contract
+behavior. There is no provider-family layer on this object: assertion type and provider family are
+independent axes, and an AI-model-sourced claim may be observed, declared, or inferred. Provider
+identity and payload mapping stay in Aleph's acquisition adapters, which normalize into these types.
+The inheritance graph and that reasoning are in [docs/concerns.md](docs/concerns.md).
+
+### Storing assertions
+
+`HistoricalAssertionStore` is the durable system of record. Every method takes the caller's
+authorization context and scopes its work to that context's tenant. Reads never cross a tenant
+boundary and never reveal that they could have: another tenant's assertion is absent, not forbidden,
+so existence does not leak through an error. Appending into a tenant the caller does not hold fails
+explicitly, because that is the caller overreaching rather than a reader being scoped.
+
+Nothing mutates or deletes. An append is idempotent by assertion fingerprint and returns an explicit
+`first` or `duplicate` disposition; a duplicate returns the assertion already stored, so a retrying
+caller learns the identity of record. Reusing one identity for a different claim is a conflict rather
+than an overwrite. The same claim held by two tenants stays two separate facts.
+
+`asOf()` reconstructs by transaction time: the latest assertion recorded at or before a given moment,
+ignoring everything the store learned afterwards. A tombstone applies only from the moment it was
+recorded, so a claim withdrawn today is still returned for a moment before the withdrawal — which is
+the point of asking what was known then rather than what is believed now. Valid-time reconstruction
+over an effective interval is not this object's concern; an assertion is a point claim.
+
+A withdrawal is a tombstone, never a delete. It requires a reason, records the withdrawing
+authorization context and time, hides the claim from the live view, and leaves the assertion row
+intact. Repeating a tombstone preserves the original withdrawal rather than restamping it. Destroying
+the underlying material is erasure, which is a separate concern.
+
+Timestamp columns are written through `StoredTimestamp`, described below.
+
+## How a moment is stored
+
+`Sifrious\\Funes\\Time\\StoredTimestamp` is the single authority for writing a moment to a Funes
+column and reading it back.
+
+A database driver's own date binding formats a value in whatever timezone it arrives in, and to whole
+seconds. Both losses matter here. Truncating microseconds discards ordering this package promises to
+preserve. Dropping the offset is worse than imprecise: a source reporting noon at `+02:00` and one
+reporting noon at UTC describe instants two hours apart, and stored as bare wall-clock text they
+become indistinguishable from two instants two hours apart in the other direction. Comparison,
+ordering, and every point-in-time reconstruction built on them are then quietly wrong.
+
+So a stored moment is normalized to UTC and written at microsecond precision, which makes the text
+lexicographically comparable no matter what offset a source reported — what lets an index range-scan a
+timeline. The offset a source actually used is not discarded: it survives in the canonical document
+or value object that retrieval hydrates from. These columns exist to filter and order, not to be the
+record of what a source said.
+
+Drafts that carry a moment as text go through `StoredTimestamp::normalize()`, which parses and
+reformats. A value that is not a usable moment fails there rather than becoming a column that cannot
+be compared.
+
+A test asserts that no `Sql*` store binds a raw date or value to a `*_at` column, so the driver
+cannot quietly reintroduce the truncation.
+
 ## Cross-package events and delivery
 
 Package-owned behavior crosses boundaries through `EventEnvelope`. The versioned serialized contract
@@ -194,9 +293,19 @@ Manual verification on a specific Mac remains a human step using the same comman
 
 Historical text enters as a namespaced `TextDraft` with content type, optional language, and immutable content. Retrieval returns append-only `TextAssertion` values linked to observation provenance. A textual raw payload is also exposed as `funes:source-payload`, retaining its original payload hash as text identity. Changed attached text appends without changing the observation; exact retry reuses the assertion.
 
-The package-bound `TextProjection` rebuilds adapter-ready text documents entirely from authoritative observations, payloads, and text assertions. The projection can be deleted and recreated without losing history. It deliberately exposes documents rather than implementing full-text ranking or a search engine; those query behaviors belong to the later index/search stage.
+The package-bound `TextProjection` rebuilds adapter-ready text documents entirely from authoritative observations, payloads, and text assertions. The projection can be deleted and recreated without losing history. It exposes documents rather than ranking them; querying and ranking belong to `FullTextSearch` below.
 
-This slice deliberately excludes crawling, URL canonicalization policy, payload compression, object storage, search projections, and mutable resource state. Callers decide what a canonical reference means; Funes preserves it without assuming a particular website platform or content domain.
+This slice deliberately excludes crawling, URL canonicalization policy, payload compression, object storage, semantic retrieval, and mutable resource state. Callers decide what a canonical reference means; Funes preserves it without assuming a particular website platform or content domain.
 Funes also exposes a durable append-only historical graph under `Sifrious\\Funes\\Graph`. The package-bound `SqlHistoricalAppender` atomically stores stable entity facts, external identifiers, and typed relation assertions with source evidence. Append keys are idempotent: exact replay returns without another effect, while reuse with different facts raises `HistoricalAppendConflict`. Identical facts may participate in multiple append receipts without being duplicated. Inferred relations must carry evidence and confidence, keeping generated meaning distinct from observed history.
+
+### Full-text search
+
+`Sifrious\\Funes\\Search\\FullTextSearch` is the discovery path for history someone can only describe. Resolve it from the container, call `rebuild()` to build the index from stored assertions, and call `search(new SearchQuery('losing the instant'), $authorization)` to read it.
+
+A `SearchQuery` carries the text plus optional `subjectTypes`, `predicates`, and `sourceReferences` filters, so a caller can ask for a commit whose message says something rather than for the phrase anywhere. Every normalized term must match, at a token boundary. When the text looks like an identifier — a git object name, a key such as `MME-1887`, or an already-namespaced reference — the query reports it through `identifierCandidate()`, and the caller should offer it to identity resolution before scoring anything.
+
+`SearchResults` carries the ranked page, the authorized `total`, whether the match set exceeded the ranked window, and that identifier candidate. Each `SearchHit` hands back the canonical assertion itself — stable subject reference, source locator, provenance, evidence, and temporal coordinates — alongside the matched field and a snippet, so a result is citable and explains why it matched.
+
+The index is a projection and never an authority. It is rebuilt in full from stored assertions, nothing in the seam writes a claim, and a destroyed index costs a rebuild and no history. Reads are scoped to the caller's tenant in SQL before anything is fetched, scored, or counted, so another tenant's history is absent from the hits and from the total alike; a withdrawn assertion leaves search at once rather than at the next rebuild.
 
 `TwinkleHistory` accepts immutable Elwin lifecycle envelopes without importing Elwin or Titan models. It preserves versions, provenance, merge identities, and Twinkle-to-Titan promotion subjects. Exact redelivery is idempotent, conflicting event reuse fails explicitly, and retrieval is chronologically ordered evidence rather than a current-state projection.
